@@ -186,8 +186,19 @@ PendingIntent.FLAG_IMMUTABLE
             Notification.Builder(this)
         }
 
-        return builder
-            .setContentTitle("Firewall service")
+        val artwork = BitmapFactory.decodeResource(
+    resources,
+    R.drawable.notification_wallpaper
+)
+
+return builder
+    .setLargeIcon(artwork)
+    .setStyle(
+        Notification.BigPictureStyle()
+            .bigPicture(artwork)
+            .bigLargeIcon(null as android.graphics.Bitmap?)
+    )
+    .setContentTitle("Firewall service")
             .setContentText("VPN service status is active")
             .setSmallIcon(android.R.drawable.ic_lock_lock)
             .setContentIntent(openPendingIntent)    
