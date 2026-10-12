@@ -12,7 +12,13 @@ import java.io.FileInputStream
 import java.io.IOException
 
 class FirewallVpnService : VpnService() {
+    companion object {
+    @Volatile
+    var isRunning: Boolean = false
+        private set
 
+    const val ACTION_STOP = "com.firewall.app.STOP_FIREWALL"
+    }
     @Volatile
     private var vpnInterface: ParcelFileDescriptor? = null
 
