@@ -122,7 +122,7 @@ val builder = Builder()
             val channel = NotificationChannel(
                 channelId,
                 "Firewall status",
-                NotificationManager.IMPORTANCE_LOW
+                NotificationManager.IMPORTANCE_DEFAULT
             ).apply {
                 description = "Shows when Firewall is active"
             }
