@@ -9,11 +9,11 @@ import android.graphics.drawable.GradientDrawable
 import android.net.VpnService
 import android.os.Bundle
 import android.view.Gravity
-import android.view.View
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
+import android.widget.ImageView
 
 class MainActivity : Activity() {
 
@@ -23,6 +23,8 @@ class MainActivity : Activity() {
     private lateinit var prefs: SharedPreferences
 
     private val appPackage = "com.firewall.app"
+    private val vpnRequestCode = 100
+    private var vpnRequested = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -42,10 +44,7 @@ class MainActivity : Activity() {
             typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER
         }
-        root.addView(
-            title,
-            LinearLayout.LayoutParams(-1, dp(55))
-        )
+        root.addView(title, LinearLayout.LayoutParams(-1, dp(55)))
 
         statusText = TextView(this).apply {
             text = "FIREWALL OFF\nRules are saved only, not enforced."
@@ -54,21 +53,13 @@ class MainActivity : Activity() {
             gravity = Gravity.CENTER
             setPadding(dp(8), dp(8), dp(8), dp(12))
         }
-        root.addView(
-            statusText,
-            LinearLayout.LayoutParams(-1, -2)
-        )
+        root.addView(statusText, LinearLayout.LayoutParams(-1, -2))
 
         vpnButton = Button(this).apply {
-            text = "REQUEST VPN PERMISSION"
-            setOnClickListener {
-                requestVpnPermission()
-            }
+            text = "START FIREWALL"
+            setOnClickListener { requestOrStopVpn() }
         }
-        root.addView(
-            vpnButton,
-            LinearLayout.LayoutParams(-1, -2)
-        )
+        root.addView(vpnButton, LinearLayout.LayoutParams(-1, -2))
 
         val legend = TextView(this).apply {
             text = "□ No rule    × Block    ✓ Allow"
@@ -77,10 +68,7 @@ class MainActivity : Activity() {
             gravity = Gravity.CENTER
             setPadding(0, dp(14), 0, dp(8))
         }
-        root.addView(
-            legend,
-            LinearLayout.LayoutParams(-1, -2)
-        )
+        root.addView(legend, LinearLayout.LayoutParams(-1, -2))
 
         val heading = TextView(this).apply {
             text = "INSTALLED APPS"
@@ -89,42 +77,51 @@ class MainActivity : Activity() {
             typeface = Typeface.DEFAULT_BOLD
             setPadding(0, dp(8), 0, dp(8))
         }
-        root.addView(
-            heading,
-            LinearLayout.LayoutParams(-1, -2)
-        )
+        root.addView(heading, LinearLayout.LayoutParams(-1, -2))
 
         val scrollView = ScrollView(this)
-
         val appList = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
         }
-
         scrollView.addView(appList)
-
-        root.addView(
-            scrollView,
-            LinearLayout.LayoutParams( -1, 0, 1f)
-        )
+        root.addView(scrollView, LinearLayout.LayoutParams(-1, 0, 1f))
 
         setContentView(root)
-
         loadInstalledApps(appList)
+        refreshVpnButton()
     }
 
-    private fun requestVpnPermission() {
-        val intent = VpnService.prepare(this)
-
-        if (intent != null) {
-            @Suppress("DEPRECATION")
-            startActivityForResult(intent, 100)
-        } else {
+    private fun requestOrStopVpn() {
+        if (vpnRequested) {
+            stopService(Intent(this, FirewallVpnService::class.java))
+            vpnRequested = false
             statusText.text =
-                "VPN permission already granted.\nFiltering is not active."
+                "Firewall stopped.\nInternet filtering is off."
+            refreshVpnButton()
+            return
+        }
+
+        val blockedApps = prefs.all.any {
+            it.value == "block" && it.key != appPackage
+        }
+
+        if (!blockedApps) {
+            statusText.text =
+                "Select an app with a red × first."
+            return
+        }
+
+        val permissionIntent = VpnService.prepare(this)
+
+        if (permissionIntent != null) {
+            @Suppress("DEPRECATION")
+            startActivityForResult(permissionIntent, vpnRequestCode)
+        } else {
+            startFirewallService()
         }
     }
 
-    @Deprecated("Uses the compatible VPN permission result callback")
+    @Deprecated("Uses compatible VPN permission callback")
     override fun onActivityResult(
         requestCode: Int,
         resultCode: Int,
@@ -132,14 +129,40 @@ class MainActivity : Activity() {
     ) {
         super.onActivityResult(requestCode, resultCode, data)
 
-        if (requestCode == 100) {
+        if (requestCode == vpnRequestCode) {
             if (resultCode == RESULT_OK) {
-                statusText.text =
-                    "VPN permission granted.\nFiltering is not active."
+                startFirewallService()
             } else {
                 statusText.text =
-                    "VPN permission declined.\nFiltering is not active."
+                    "VPN permission declined.\nFirewall remains off."
             }
+        }
+    }
+
+    private fun startFirewallService() {
+        try {
+            val serviceIntent = Intent(
+                this,
+                FirewallVpnService::class.java
+            )
+            startService(serviceIntent)
+            vpnRequested = true
+            statusText.text =
+                "Start requested.\nBlocked apps may lose internet access."
+            refreshVpnButton()
+        } catch (_: Exception) {
+            vpnRequested = false
+            statusText.text =
+                "Could not start VPN. Firewall remains off."
+            refreshVpnButton()
+        }
+    }
+
+    private fun refreshVpnButton() {
+        vpnButton.text = if (vpnRequested) {
+            "STOP FIREWALL"
+        } else {
+            "START FIREWALL"
         }
     }
 
@@ -153,21 +176,10 @@ class MainActivity : Activity() {
             .filter { it.activityInfo.packageName != appPackage }
             .distinctBy { it.activityInfo.packageName }
             .sortedBy {
-                it.loadLabel(packageManager).toString()
-                    .lowercase()
+                it.loadLabel(packageManager).toString().lowercase()
             }
 
         appList.removeAllViews()
-
-        if (apps.isEmpty()) {
-            val emptyText = TextView(this).apply {
-                text = "No installed apps found."
-                setTextColor(Color.LTGRAY)
-                textSize = 16f
-            }
-            appList.addView(emptyText)
-            return
-        }
 
         for (info in apps) {
             val packageName = info.activityInfo.packageName
@@ -177,24 +189,17 @@ class MainActivity : Activity() {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.CENTER_VERTICAL
                 setPadding(dp(8), dp(8), dp(8), dp(8))
-                setBackground(
-                    roundedBackground(
-                        Color.rgb(34, 39, 47),
-                        Color.rgb(60, 67, 77)
-                    )
+                background = roundedBackground(
+                    Color.rgb(34, 39, 47),
+                    Color.rgb(60, 67, 77)
                 )
             }
 
-            val appIcon = info.loadIcon(packageManager)
-            val iconView = android.widget.ImageView(this).apply {
-                setImageDrawable(appIcon)
-                scaleType = android.widget.ImageView.ScaleType.FIT_CENTER
+            val iconView = ImageView(this).apply {
+                setImageDrawable(info.loadIcon(packageManager))
+                scaleType = ImageView.ScaleType.FIT_CENTER
             }
-
-            row.addView(
-                iconView,
-                LinearLayout.LayoutParams(dp(42), dp(42))
-            )
+            row.addView(iconView, LinearLayout.LayoutParams(dp(42), dp(42)))
 
             val details = LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL
@@ -217,17 +222,12 @@ class MainActivity : Activity() {
 
             details.addView(nameView)
             details.addView(packageView)
-
-            row.addView(
-                details,
-                LinearLayout.LayoutParams(0, -2, 1f)
-            )
+            row.addView(details, LinearLayout.LayoutParams(0, -2, 1f))
 
             val stateButton = TextView(this).apply {
                 gravity = Gravity.CENTER
                 textSize = 25f
                 typeface = Typeface.DEFAULT_BOLD
-                setPadding(0, 0, 0, 0)
                 isClickable = true
                 isFocusable = true
             }
@@ -236,56 +236,52 @@ class MainActivity : Activity() {
                 when (prefs.getString(packageName, "none")) {
                     "block" -> {
                         stateButton.text = "×"
-                        stateButton.setTextColor(
-                            Color.rgb(255, 65, 65)
-                        )
+                        stateButton.setTextColor(Color.rgb(255, 65, 65))
                         stateButton.background = roundedBackground(
                             Color.rgb(65, 27, 30),
                             Color.rgb(255, 65, 65)
                         )
                         stateButton.contentDescription =
-                            "Marked to block; not enforced"
+                            "Marked to block; not enforced until firewall starts"
                     }
 
                     "allow" -> {
                         stateButton.text = "✓"
-                        stateButton.setTextColor(
-                            Color.rgb(50, 230, 130)
-                        )
+                        stateButton.setTextColor(Color.rgb(50, 230, 130))
                         stateButton.background = roundedBackground(
                             Color.rgb(24, 59, 43),
                             Color.rgb(50, 230, 130)
                         )
                         stateButton.contentDescription =
-                            "Marked to allow; not enforced"
+                            "Marked to allow; not enforced until firewall starts"
                     }
 
                     else -> {
                         stateButton.text = ""
-                        stateButton.setTextColor(Color.LTGRAY)
                         stateButton.background = roundedBackground(
                             Color.TRANSPARENT,
                             Color.rgb(155, 160, 170)
                         )
-                        stateButton.contentDescription =
-                            "No rule selected"
+                        stateButton.contentDescription = "No rule selected"
                     }
                 }
             }
 
             stateButton.setOnClickListener {
-                val current = prefs.getString(packageName, "none")
+                if (vpnRequested) {
+                    statusText.text =
+                        "Stop the firewall before changing app rules."
+                    return@setOnClickListener
+                }
 
+                val current = prefs.getString(packageName, "none")
                 val next = when (current) {
                     "none" -> "block"
                     "block" -> "allow"
                     else -> "none"
                 }
 
-                prefs.edit()
-                    .putString(packageName, next)
-                    .apply()
-
+                prefs.edit().putString(packageName, next).apply()
                 updateButton()
             }
 
@@ -298,11 +294,12 @@ class MainActivity : Activity() {
 
             updateButton()
 
-            val rowParams = LinearLayout.LayoutParams(-1, -2).apply {
-                bottomMargin = dp(8)
-            }
-
-            appList.addView(row, rowParams)
+            appList.addView(
+                row,
+                LinearLayout.LayoutParams(-1, -2).apply {
+                    bottomMargin = dp(8)
+                }
+            )
         }
     }
 
@@ -319,5 +316,10 @@ class MainActivity : Activity() {
 
     private fun dp(value: Int): Int {
         return (value * resources.displayMetrics.density).toInt()
+    }
+
+    override fun onDestroy() {
+        // Do not stop the service here; the VPN can outlive this screen.
+        super.onDestroy()
     }
 }
