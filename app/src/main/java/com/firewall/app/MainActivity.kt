@@ -7,6 +7,7 @@ import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.net.VpnService
+import android.os.Build
 import android.os.Bundle
 import android.view.Gravity
 import android.widget.Button
@@ -20,11 +21,13 @@ class MainActivity : Activity() {
     private lateinit var root: LinearLayout
     private lateinit var statusText: TextView
     private lateinit var vpnButton: Button
+    private lateinit var appList: LinearLayout
     private lateinit var prefs: SharedPreferences
 
     private val appPackage = "com.firewall.app"
     private val vpnRequestCode = 100
-    private var vpnRequested = false
+
+    private var startRequested = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -47,7 +50,6 @@ class MainActivity : Activity() {
         root.addView(title, LinearLayout.LayoutParams(-1, dp(55)))
 
         statusText = TextView(this).apply {
-            text = "FIREWALL OFF\nRules are saved only, not enforced."
             textSize = 15f
             setTextColor(Color.rgb(255, 190, 70))
             gravity = Gravity.CENTER
@@ -57,7 +59,7 @@ class MainActivity : Activity() {
 
         vpnButton = Button(this).apply {
             text = "START FIREWALL"
-            setOnClickListener { requestOrStopVpn() }
+            setOnClickListener { toggleFirewall() }
         }
         root.addView(vpnButton, LinearLayout.LayoutParams(-1, -2))
 
@@ -80,24 +82,27 @@ class MainActivity : Activity() {
         root.addView(heading, LinearLayout.LayoutParams(-1, -2))
 
         val scrollView = ScrollView(this)
-        val appList = LinearLayout(this).apply {
+        appList = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
         }
         scrollView.addView(appList)
         root.addView(scrollView, LinearLayout.LayoutParams(-1, 0, 1f))
 
         setContentView(root)
-        loadInstalledApps(appList)
-        refreshVpnButton()
+        loadInstalledApps()
+        updateStatus()
     }
 
-    private fun requestOrStopVpn() {
-        if (vpnRequested) {
-            stopService(Intent(this, FirewallVpnService::class.java))
-            vpnRequested = false
-            statusText.text =
-                "Firewall stopped.\nInternet filtering is off."
-            refreshVpnButton()
+    override fun onResume() {
+        super.onResume()
+        if (::statusText.isInitialized) {
+            updateStatus()
+        }
+    }
+
+    private fun toggleFirewall() {
+        if (startRequested) {
+            stopFirewall()
             return
         }
 
@@ -106,8 +111,7 @@ class MainActivity : Activity() {
         }
 
         if (!blockedApps) {
-            statusText.text =
-                "Select an app with a red × first."
+            statusText.text = "Choose an app with a red × first."
             return
         }
 
@@ -133,40 +137,77 @@ class MainActivity : Activity() {
             if (resultCode == RESULT_OK) {
                 startFirewallService()
             } else {
-                statusText.text =
-                    "VPN permission declined.\nFirewall remains off."
+                statusText.text = "VPN permission declined. Firewall is off."
             }
         }
     }
 
     private fun startFirewallService() {
         try {
-            val serviceIntent = Intent(
-                this,
-                FirewallVpnService::class.java
-            )
-            startService(serviceIntent)
-            vpnRequested = true
-            statusText.text =
-                "Start requested.\nBlocked apps may lose internet access."
-            refreshVpnButton()
+            val intent = Intent(this, FirewallVpnService::class.java)
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(intent)
+            } else {
+                startService(intent)
+            }
+
+            startRequested = true
+            updateStatus()
         } catch (_: Exception) {
-            vpnRequested = false
-            statusText.text =
-                "Could not start VPN. Firewall remains off."
-            refreshVpnButton()
+            startRequested = false
+            statusText.text = "Could not start VPN. Firewall is off."
+            updateStatus()
         }
     }
 
-    private fun refreshVpnButton() {
-        vpnButton.text = if (vpnRequested) {
+    private fun stopFirewall() {
+        val intent = Intent(this, FirewallVpnService::class.java).apply {
+            action = FirewallVpnService.ACTION_STOP
+        }
+
+        try {
+            startService(intent)
+        } catch (_: Exception) {
+            stopService(Intent(this, FirewallVpnService::class.java))
+        }
+
+        startRequested = false
+        updateStatus()
+    }
+
+    private fun updateStatus() {
+        if (!::statusText.isInitialized) return
+
+        val permissionGranted = VpnService.prepare(this) == null
+
+        statusText.text = when {
+            startRequested ->
+                "START REQUESTED\nSelected app traffic may be interrupted."
+            permissionGranted ->
+                "FIREWALL OFF\nVPN permission granted; filtering is not running."
+            else ->
+                "FIREWALL OFF\nRules are saved only, not enforced."
+        }
+
+        vpnButton.text = if (startRequested) {
             "STOP FIREWALL"
         } else {
             "START FIREWALL"
         }
+
+        // Do not let rules be edited while startup is requested.
+        for (i in 0 until appList.childCount) {
+            val row = appList.getChildAt(i) as? LinearLayout ?: continue
+            if (row.childCount > 0) {
+                val control = row.getChildAt(row.childCount - 1)
+                control.isEnabled = !startRequested
+                control.alpha = if (startRequested) 0.5f else 1f
+            }
+        }
     }
 
-    private fun loadInstalledApps(appList: LinearLayout) {
+    private fun loadInstalledApps() {
         val launcherIntent = Intent(Intent.ACTION_MAIN).apply {
             addCategory(Intent.CATEGORY_LAUNCHER)
         }
@@ -241,10 +282,8 @@ class MainActivity : Activity() {
                             Color.rgb(65, 27, 30),
                             Color.rgb(255, 65, 65)
                         )
-                        stateButton.contentDescription =
-                            "Marked to block; not enforced until firewall starts"
+                        stateButton.contentDescription = "Marked to block"
                     }
-
                     "allow" -> {
                         stateButton.text = "✓"
                         stateButton.setTextColor(Color.rgb(50, 230, 130))
@@ -252,12 +291,11 @@ class MainActivity : Activity() {
                             Color.rgb(24, 59, 43),
                             Color.rgb(50, 230, 130)
                         )
-                        stateButton.contentDescription =
-                            "Marked to allow; not enforced until firewall starts"
+                        stateButton.contentDescription = "Marked to allow"
                     }
-
                     else -> {
                         stateButton.text = ""
+                        stateButton.setTextColor(Color.LTGRAY)
                         stateButton.background = roundedBackground(
                             Color.TRANSPARENT,
                             Color.rgb(155, 160, 170)
@@ -268,9 +306,8 @@ class MainActivity : Activity() {
             }
 
             stateButton.setOnClickListener {
-                if (vpnRequested) {
-                    statusText.text =
-                        "Stop the firewall before changing app rules."
+                if (startRequested) {
+                    statusText.text = "Stop the firewall before changing rules."
                     return@setOnClickListener
                 }
 
@@ -316,10 +353,5 @@ class MainActivity : Activity() {
 
     private fun dp(value: Int): Int {
         return (value * resources.displayMetrics.density).toInt()
-    }
-
-    override fun onDestroy() {
-        // Do not stop the service here; the VPN can outlive this screen.
-        super.onDestroy()
     }
 }
