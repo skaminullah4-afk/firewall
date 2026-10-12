@@ -40,6 +40,17 @@ class MainActivity : Activity() {
             statusHandler.postDelayed(this, 1000)
         }
     }
+ 
+    override fun onStart() {
+        super.onStart()
+        statusHandler.removeCallbacks(statusRefresh)
+        statusHandler.post(statusRefresh)
+    }
+
+    override fun onStop() {
+        statusHandler.removeCallbacks(statusRefresh)
+        super.onStop()
+    }
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
