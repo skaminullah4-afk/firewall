@@ -360,10 +360,7 @@ if (intent?.action == "com.firewall.app.START_FROM_NOTIFICATION") {
                     else -> {
                         stateButton.text = ""
                         stateButton.setTextColor(Color.LTGRAY)
-                        stateButton.background = roundedBackground(
-                            Color.TRANSPARENT,
-                            Color.rgb(155, 160, 170)
-                        )
+                        stateButton.setBackgroundColor(Color.TRANSPARENT)
                         stateButton.contentDescription = "No rule selected"
                     }
                 }
