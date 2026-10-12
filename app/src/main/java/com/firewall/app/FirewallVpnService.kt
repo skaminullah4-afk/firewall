@@ -1,7 +1,12 @@
 package com.firewall.app
 
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.Intent
 import android.net.VpnService
+import android.os.Build
 import android.os.ParcelFileDescriptor
 import java.io.FileInputStream
 import java.io.IOException
@@ -14,13 +19,23 @@ class FirewallVpnService : VpnService() {
     @Volatile
     private var packetThread: Thread? = null
 
+    private val channelId = "firewall_status"
+    private val notificationId = 101
+
     override fun onStartCommand(
         intent: Intent?,
         flags: Int,
         startId: Int
     ): Int {
+        if (intent?.action == ACTION_STOP) {
+            closeVpn()
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            stopSelf()
+            return START_NOT_STICKY
+        }
+
         if (vpnInterface != null) {
-            return START_STICKY
+            return START_NOT_STICKY
         }
 
         val prefs = getSharedPreferences(
@@ -30,24 +45,23 @@ class FirewallVpnService : VpnService() {
 
         val blockedApps = prefs.all
             .filter { entry ->
-                entry.value == "block" &&
-                    entry.key != packageName
+                entry.value == "block" && entry.key != packageName
             }
             .keys
 
-        // Never create a VPN with no confirmed blocked apps.
         if (blockedApps.isEmpty()) {
             stopSelf()
             return START_NOT_STICKY
         }
 
         try {
+            createNotificationChannel()
+            startForeground(notificationId, buildNotification())
+
             val builder = Builder()
                 .setSession("Firewall")
                 .addAddress("10.10.0.1", 32)
                 .addRoute("0.0.0.0", 0)
-                .addAddress("fd00:1:fd00:1::1", 128)
-                .addRoute("::", 0)
                 .setMtu(1500)
 
             var addedApps = 0
@@ -57,13 +71,12 @@ class FirewallVpnService : VpnService() {
                     builder.addAllowedApplication(app)
                     addedApps++
                 } catch (_: android.content.pm.PackageManager.NameNotFoundException) {
-                    // Ignore apps that are no longer installed.
+                    // App may have been uninstalled.
                 }
             }
 
-            // Safety check: never establish a VPN if no
-            // blocked application could be added.
             if (addedApps == 0) {
+                stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
                 return START_NOT_STICKY
             }
@@ -71,6 +84,7 @@ class FirewallVpnService : VpnService() {
             val descriptor = builder.establish()
 
             if (descriptor == null) {
+                stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
                 return START_NOT_STICKY
             }
@@ -89,9 +103,69 @@ class FirewallVpnService : VpnService() {
 
         } catch (_: Exception) {
             closeVpn()
+            stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
             return START_NOT_STICKY
         }
+    }
+
+    private fun createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                channelId,
+                "Firewall status",
+                NotificationManager.IMPORTANCE_LOW
+            ).apply {
+                description = "Shows when Firewall is active"
+            }
+
+            getSystemService(NotificationManager::class.java)
+                .createNotificationChannel(channel)
+        }
+    }
+
+    private fun buildNotification(): Notification {
+        val openApp = Intent(this, MainActivity::class.java)
+
+        val openPendingIntent = PendingIntent.getActivity(
+            this,
+            1,
+            openApp,
+            PendingIntent.FLAG_UPDATE_CURRENT or
+                PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val stopIntent = Intent(this, FirewallVpnService::class.java).apply {
+            action = ACTION_STOP
+        }
+
+        val stopPendingIntent = PendingIntent.getService(
+            this,
+            2,
+            stopIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or
+                PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            Notification.Builder(this, channelId)
+        } else {
+            @Suppress("DEPRECATION")
+            Notification.Builder(this)
+        }
+
+        return builder
+            .setContentTitle("Firewall is running")
+            .setContentText("App traffic filtering is active")
+            .setSmallIcon(android.R.drawable.ic_lock_lock)
+            .setContentIntent(openPendingIntent)
+            .setOngoing(true)
+            .addAction(
+                0,
+                "Stop",
+                stopPendingIntent
+            )
+            .build()
     }
 
     private fun discardPackets(
@@ -106,20 +180,18 @@ class FirewallVpnService : VpnService() {
                     vpnInterface === descriptor
                 ) {
                     val length = input.read(packet)
-
-                    if (length <= 0) {
-                        break
-                    }
+                    if (length <= 0) break
 
                     // Intentionally discard packets.
-                    // This VPN does not forward traffic.
+                    // This service does not forward traffic.
                 }
             }
         } catch (_: IOException) {
-            // Expected when the VPN interface is closed.
+            // Expected when the interface closes.
         } finally {
             if (vpnInterface === descriptor) {
                 closeVpn()
+                stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
             }
         }
@@ -139,11 +211,22 @@ class FirewallVpnService : VpnService() {
         packetThread = null
     }
 
+    override fun onRevoke() {
+        closeVpn()
+        stopForeground(STOP_FOREGROUND_REMOVE)
+        stopSelf()
+        super.onRevoke()
+    }
+
     override fun onDestroy() {
         closeVpn()
+        stopForeground(STOP_FOREGROUND_REMOVE)
         super.onDestroy()
     }
 
-    override fun onBind(intent: Intent) =
-        super.onBind(intent)
+    override fun onBind(intent: Intent) = super.onBind(intent)
+
+    companion object {
+        const val ACTION_STOP = "com.firewall.app.STOP_FIREWALL"
+    }
 }
