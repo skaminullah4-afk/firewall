@@ -27,6 +27,9 @@ class FirewallVpnService : VpnService() {
         flags: Int,
         startId: Int
     ): Int {
+        if (intent?.action == ACTION_START) {
+    closeVpn()
+        }
         if (intent?.action == ACTION_STOP) {
     closeVpn()
     isRunning = false
