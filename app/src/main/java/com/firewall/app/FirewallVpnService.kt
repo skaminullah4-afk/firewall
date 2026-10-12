@@ -1,5 +1,7 @@
 package com.firewall.app
 
+import android.graphics.BitmapFactory
+import android.widget.RemoteViews
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
