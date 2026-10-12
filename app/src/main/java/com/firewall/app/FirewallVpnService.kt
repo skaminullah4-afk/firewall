@@ -199,6 +199,7 @@ finally {
         stopSelf()
     }
 }
+    }
 
     private fun closeVpn() {
         isRunning = false
