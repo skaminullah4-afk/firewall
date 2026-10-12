@@ -58,13 +58,16 @@ class FirewallVpnService : VpnService() {
         try {
             createNotificationChannel()
             startForeground(notificationId, buildNotification())
-
-            val builder = Builder()
-                .setSession("Firewall")
-                .addAddress("10.10.0.1", 32)
-                .addRoute("0.0.0.0", 0)
-                .setMtu(1500)
-
+      
+val builder = Builder()
+    .setSession("Firewall")
+    .addAddress("10.10.0.1", 32)
+    .addRoute("0.0.0.0", 0)
+    .addAddress("fd00:1:fd00:1::1", 128)
+    .addRoute("::", 0)
+    .setMtu(1500)
+    .setBlocking(true)
+    
             var addedApps = 0
 
             for (app in blockedApps) {
