@@ -251,5 +251,6 @@ val startPendingIntent = PendingIntent.getActivity(
             private set
 
         const val ACTION_STOP = "com.firewall.app.STOP_FIREWALL"
+const val ACTION_START = "com.firewall.app.START_FIREWALL"
     }
 }
