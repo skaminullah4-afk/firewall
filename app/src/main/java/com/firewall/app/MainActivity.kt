@@ -2,14 +2,12 @@ package com.firewall.app
 
 import android.app.Activity
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.net.VpnService
 import android.os.Bundle
 import android.graphics.Color
 import android.view.Gravity
 import android.view.ViewGroup
 import android.widget.Button
-import android.widget.CheckBox
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
@@ -44,14 +42,14 @@ class MainActivity : Activity() {
 
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(20, 20, 20, 12)
+            setPadding(16, 18, 16, 10)
             setBackgroundColor(Color.rgb(18, 18, 18))
         }
 
         root.addView(makeText("🛡️ FIREWALL", 28f))
 
         status = makeText(
-            "Firewall is OFF. Internet is unchanged.",
+            "FIREWALL OFF\nRules are saved only, not enforced.",
             14f
         )
 
@@ -79,27 +77,26 @@ class MainActivity : Activity() {
             if (intent != null) {
                 @Suppress("DEPRECATION")
                 startActivityForResult(
-                    intent,
-                    VPN_REQUEST_CODE
+                    intent, VPN_REQUEST_CODE
                 )
             } else {
                 status.text =
-                    "Permission granted. Firewall is OFF."
+                    "Permission granted.\nFirewall is still OFF."
             }
         }
 
         root.addView(
             makeText("INSTALLED APPS", 20f),
             LinearLayout.LayoutParams(-1, -2).apply {
-                topMargin = 20
-                bottomMargin = 8
+                topMargin = 16
+                bottomMargin = 6
             }
         )
 
         root.addView(
             makeText(
-                "Check an app to mark it for blocking.",
-                13f
+                "❌ = Allow | 🚫 = Mark to block",
+                14f
             )
         )
 
@@ -115,9 +112,7 @@ class MainActivity : Activity() {
 
         root.addView(
             scroll,
-            LinearLayout.LayoutParams(
-                -1, 0, 1f
-            )
+            LinearLayout.LayoutParams(-1, 0, 1f)
         )
 
         setContentView(root)
@@ -138,7 +133,9 @@ class MainActivity : Activity() {
         @Suppress("DEPRECATION")
         val apps = packageManager
             .queryIntentActivities(intent, 0)
-            .distinctBy { it.activityInfo.packageName }
+            .distinctBy {
+                it.activityInfo.packageName
+            }
             .filter {
                 it.activityInfo.packageName != packageName
             }
@@ -148,42 +145,80 @@ class MainActivity : Activity() {
             }
 
         for (app in apps) {
-            val appPackage = app.activityInfo.packageName
-            val appName = app.loadLabel(packageManager)
-                .toString()
+            val appPackage =
+                app.activityInfo.packageName
 
-            val checkBox = CheckBox(this).apply {
-                text = "$appName\n$appPackage"
-                textSize = 14f
-                setTextColor(Color.WHITE)
-                buttonTintList =
-                    android.content.res.ColorStateList.valueOf(
-                        Color.rgb(90, 190, 130)
-                    )
-                isChecked = prefs.getBoolean(
-                    appPackage, false
-                )
+            val appName =
+                app.loadLabel(packageManager).toString()
+
+            val row = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
                 setPadding(4, 8, 4, 8)
-
-                setOnCheckedChangeListener { _, checked ->
-                    prefs.edit()
-                        .putBoolean(appPackage, checked)
-                        .apply()
-                }
             }
 
+            val details = TextView(this).apply {
+                text = "$appName\n$appPackage"
+                textSize = 13f
+                setTextColor(Color.WHITE)
+            }
+
+            row.addView(
+                details,
+                LinearLayout.LayoutParams(0, -2, 1f)
+            )
+
+            val blockButton = Button(this).apply {
+                isAllCaps = false
+                textSize = 18f
+            }
+
+            fun updateButton() {
+                val marked = prefs.getBoolean(
+                    appPackage, false
+                )
+
+                blockButton.text =
+                    if (marked) "🚫" else "❌"
+
+                blockButton.contentDescription =
+                    if (marked) {
+                        "Marked to block, not enforced"
+                    } else {
+                        "Allowed, not enforced"
+                    }
+            }
+
+            updateButton()
+
+            blockButton.setOnClickListener {
+                val newValue = !prefs.getBoolean(
+                    appPackage, false
+                )
+
+                prefs.edit()
+                    .putBoolean(appPackage, newValue)
+                    .apply()
+
+                updateButton()
+            }
+
+            row.addView(
+                blockButton,
+                LinearLayout.LayoutParams(
+                    64, ViewGroup.LayoutParams.WRAP_CONTENT
+                )
+            )
+
             appList.addView(
-                checkBox,
+                row,
                 LinearLayout.LayoutParams(-1, -2)
             )
         }
 
         if (apps.isEmpty()) {
             appList.addView(
-                makeText(
-                    "No launcher apps found.",
-                    14f
-                )
+                makeText("No launcher apps found.", 14f)
             )
         }
     }
@@ -200,9 +235,9 @@ class MainActivity : Activity() {
 
         if (requestCode == VPN_REQUEST_CODE) {
             status.text = if (resultCode == RESULT_OK) {
-                "Permission granted. Firewall is OFF."
+                "VPN permission granted.\nFirewall is still OFF."
             } else {
-                "Permission declined. Firewall is OFF."
+                "VPN permission declined.\nFirewall is OFF."
             }
         }
     }
