@@ -2,11 +2,14 @@ package com.firewall.app
 
 import android.app.Activity
 import android.content.Intent
+import android.content.SharedPreferences
+import android.graphics.Color
+import android.graphics.Typeface
+import android.graphics.drawable.GradientDrawable
 import android.net.VpnService
 import android.os.Bundle
-import android.graphics.Color
 import android.view.Gravity
-import android.view.ViewGroup
+import android.view.View
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.ScrollView
@@ -14,231 +17,307 @@ import android.widget.TextView
 
 class MainActivity : Activity() {
 
-    private lateinit var status: TextView
-    private lateinit var appList: LinearLayout
+    private lateinit var root: LinearLayout
+    private lateinit var statusText: TextView
+    private lateinit var vpnButton: Button
+    private lateinit var prefs: SharedPreferences
 
-    companion object {
-        private const val VPN_REQUEST_CODE = 1001
-        private const val PREFS = "firewall_rules"
-    }
-
-    private fun makeText(
-        value: String,
-        size: Float
-    ): TextView {
-        return TextView(this).apply {
-            text = value
-            textSize = size
-            setTextColor(Color.WHITE)
-            gravity = Gravity.CENTER
-        }
-    }
+    private val appPackage = "com.firewall.app"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        window.statusBarColor = Color.rgb(18, 18, 18)
-        window.navigationBarColor = Color.BLACK
+        prefs = getSharedPreferences("firewall_rules_v2", MODE_PRIVATE)
 
-        val root = LinearLayout(this).apply {
+        root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(16, 18, 16, 10)
-            setBackgroundColor(Color.rgb(18, 18, 18))
+            setPadding(dp(16), dp(20), dp(16), dp(16))
+            setBackgroundColor(Color.rgb(20, 23, 28))
         }
 
-        root.addView(makeText("🛡️ FIREWALL", 28f))
-
-        status = makeText(
-            "FIREWALL OFF\nRules are saved only, not enforced.",
-            14f
-        )
-
+        val title = TextView(this).apply {
+            text = "FIREWALL"
+            textSize = 28f
+            setTextColor(Color.WHITE)
+            typeface = Typeface.DEFAULT_BOLD
+            gravity = Gravity.CENTER
+        }
         root.addView(
-            status,
-            LinearLayout.LayoutParams(-1, -2).apply {
-                topMargin = 12
-                bottomMargin = 12
-            }
+            title,
+            LinearLayout.LayoutParams(-1, dp(55))
         )
 
-        val vpnButton = Button(this).apply {
-            text = "REQUEST VPN PERMISSION"
-            isAllCaps = false
+        statusText = TextView(this).apply {
+            text = "FIREWALL OFF\nRules are saved only, not enforced."
+            textSize = 15f
+            setTextColor(Color.rgb(255, 190, 70))
+            gravity = Gravity.CENTER
+            setPadding(dp(8), dp(8), dp(8), dp(12))
         }
+        root.addView(
+            statusText,
+            LinearLayout.LayoutParams(-1, -2)
+        )
 
+        vpnButton = Button(this).apply {
+            text = "REQUEST VPN PERMISSION"
+            setOnClickListener {
+                requestVpnPermission()
+            }
+        }
         root.addView(
             vpnButton,
             LinearLayout.LayoutParams(-1, -2)
         )
 
-        vpnButton.setOnClickListener {
-            val intent = VpnService.prepare(this)
-
-            if (intent != null) {
-                @Suppress("DEPRECATION")
-                startActivityForResult(
-                    intent, VPN_REQUEST_CODE
-                )
-            } else {
-                status.text =
-                    "Permission granted.\nFirewall is still OFF."
-            }
+        val legend = TextView(this).apply {
+            text = "□ No rule    × Block    ✓ Allow"
+            textSize = 15f
+            setTextColor(Color.LTGRAY)
+            gravity = Gravity.CENTER
+            setPadding(0, dp(14), 0, dp(8))
         }
-
         root.addView(
-            makeText("INSTALLED APPS", 20f),
-            LinearLayout.LayoutParams(-1, -2).apply {
-                topMargin = 16
-                bottomMargin = 6
-            }
+            legend,
+            LinearLayout.LayoutParams(-1, -2)
         )
 
+        val heading = TextView(this).apply {
+            text = "INSTALLED APPS"
+            textSize = 18f
+            setTextColor(Color.WHITE)
+            typeface = Typeface.DEFAULT_BOLD
+            setPadding(0, dp(8), 0, dp(8))
+        }
         root.addView(
-            makeText(
-                "❌ = Allow | 🚫 = Mark to block",
-                14f
-            )
+            heading,
+            LinearLayout.LayoutParams(-1, -2)
         )
 
-        appList = LinearLayout(this).apply {
+        val scrollView = ScrollView(this)
+
+        val appList = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
         }
 
-        val scroll = ScrollView(this)
-        scroll.addView(
-            appList,
-            ViewGroup.LayoutParams(-1, -2)
-        )
+        scrollView.addView(appList)
 
         root.addView(
-            scroll,
-            LinearLayout.LayoutParams(-1, 0, 1f)
+            scrollView,
+            LinearLayout.LayoutParams( -1, 0, 1f)
         )
 
         setContentView(root)
-        loadApps()
+
+        loadInstalledApps(appList)
     }
 
-    private fun loadApps() {
-        appList.removeAllViews()
+    private fun requestVpnPermission() {
+        val intent = VpnService.prepare(this)
 
-        val prefs = getSharedPreferences(
-            PREFS, MODE_PRIVATE
-        )
+        if (intent != null) {
+            @Suppress("DEPRECATION")
+            startActivityForResult(intent, 100)
+        } else {
+            statusText.text =
+                "VPN permission already granted.\nFiltering is not active."
+        }
+    }
 
-        val intent = Intent(Intent.ACTION_MAIN).apply {
+    @Deprecated("Uses the compatible VPN permission result callback")
+    override fun onActivityResult(
+        requestCode: Int,
+        resultCode: Int,
+        data: Intent?
+    ) {
+        super.onActivityResult(requestCode, resultCode, data)
+
+        if (requestCode == 100) {
+            if (resultCode == RESULT_OK) {
+                statusText.text =
+                    "VPN permission granted.\nFiltering is not active."
+            } else {
+                statusText.text =
+                    "VPN permission declined.\nFiltering is not active."
+            }
+        }
+    }
+
+    private fun loadInstalledApps(appList: LinearLayout) {
+        val launcherIntent = Intent(Intent.ACTION_MAIN).apply {
             addCategory(Intent.CATEGORY_LAUNCHER)
         }
 
-        @Suppress("DEPRECATION")
         val apps = packageManager
-            .queryIntentActivities(intent, 0)
-            .distinctBy {
-                it.activityInfo.packageName
-            }
-            .filter {
-                it.activityInfo.packageName != packageName
-            }
+            .queryIntentActivities(launcherIntent, 0)
+            .filter { it.activityInfo.packageName != appPackage }
+            .distinctBy { it.activityInfo.packageName }
             .sortedBy {
-                it.loadLabel(packageManager)
-                    .toString().lowercase()
+                it.loadLabel(packageManager).toString()
+                    .lowercase()
             }
 
-        for (app in apps) {
-            val appPackage =
-                app.activityInfo.packageName
+        appList.removeAllViews()
 
-            val appName =
-                app.loadLabel(packageManager).toString()
+        if (apps.isEmpty()) {
+            val emptyText = TextView(this).apply {
+                text = "No installed apps found."
+                setTextColor(Color.LTGRAY)
+                textSize = 16f
+            }
+            appList.addView(emptyText)
+            return
+        }
+
+        for (info in apps) {
+            val packageName = info.activityInfo.packageName
+            val label = info.loadLabel(packageManager).toString()
 
             val row = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.CENTER_VERTICAL
-                setPadding(4, 8, 4, 8)
+                setPadding(dp(8), dp(8), dp(8), dp(8))
+                setBackground(
+                    roundedBackground(
+                        Color.rgb(34, 39, 47),
+                        Color.rgb(60, 67, 77)
+                    )
+                )
             }
 
-            val details = TextView(this).apply {
-                text = "$appName\n$appPackage"
-                textSize = 13f
-                setTextColor(Color.WHITE)
+            val appIcon = info.loadIcon(packageManager)
+            val iconView = android.widget.ImageView(this).apply {
+                setImageDrawable(appIcon)
+                scaleType = android.widget.ImageView.ScaleType.FIT_CENTER
             }
+
+            row.addView(
+                iconView,
+                LinearLayout.LayoutParams(dp(42), dp(42))
+            )
+
+            val details = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(dp(10), 0, dp(6), 0)
+            }
+
+            val nameView = TextView(this).apply {
+                text = label
+                textSize = 15f
+                setTextColor(Color.WHITE)
+                maxLines = 2
+            }
+
+            val packageView = TextView(this).apply {
+                text = packageName
+                textSize = 10f
+                setTextColor(Color.LTGRAY)
+                maxLines = 2
+            }
+
+            details.addView(nameView)
+            details.addView(packageView)
 
             row.addView(
                 details,
                 LinearLayout.LayoutParams(0, -2, 1f)
             )
 
-            val blockButton = Button(this).apply {
-                isAllCaps = false
-                textSize = 18f
+            val stateButton = TextView(this).apply {
+                gravity = Gravity.CENTER
+                textSize = 25f
+                typeface = Typeface.DEFAULT_BOLD
+                setPadding(0, 0, 0, 0)
+                isClickable = true
+                isFocusable = true
             }
 
             fun updateButton() {
-                val marked = prefs.getBoolean(
-                    appPackage, false
-                )
-
-                blockButton.text =
-                    if (marked) "🚫" else "❌"
-
-                blockButton.contentDescription =
-                    if (marked) {
-                        "Marked to block, not enforced"
-                    } else {
-                        "Allowed, not enforced"
+                when (prefs.getString(packageName, "none")) {
+                    "block" -> {
+                        stateButton.text = "×"
+                        stateButton.setTextColor(
+                            Color.rgb(255, 65, 65)
+                        )
+                        stateButton.background = roundedBackground(
+                            Color.rgb(65, 27, 30),
+                            Color.rgb(255, 65, 65)
+                        )
+                        stateButton.contentDescription =
+                            "Marked to block; not enforced"
                     }
+
+                    "allow" -> {
+                        stateButton.text = "✓"
+                        stateButton.setTextColor(
+                            Color.rgb(50, 230, 130)
+                        )
+                        stateButton.background = roundedBackground(
+                            Color.rgb(24, 59, 43),
+                            Color.rgb(50, 230, 130)
+                        )
+                        stateButton.contentDescription =
+                            "Marked to allow; not enforced"
+                    }
+
+                    else -> {
+                        stateButton.text = ""
+                        stateButton.setTextColor(Color.LTGRAY)
+                        stateButton.background = roundedBackground(
+                            Color.TRANSPARENT,
+                            Color.rgb(155, 160, 170)
+                        )
+                        stateButton.contentDescription =
+                            "No rule selected"
+                    }
+                }
             }
 
-            updateButton()
+            stateButton.setOnClickListener {
+                val current = prefs.getString(packageName, "none")
 
-            blockButton.setOnClickListener {
-                val newValue = !prefs.getBoolean(
-                    appPackage, false
-                )
+                val next = when (current) {
+                    "none" -> "block"
+                    "block" -> "allow"
+                    else -> "none"
+                }
 
                 prefs.edit()
-                    .putBoolean(appPackage, newValue)
+                    .putString(packageName, next)
                     .apply()
 
                 updateButton()
             }
 
             row.addView(
-                blockButton,
-                LinearLayout.LayoutParams(
-                    64, ViewGroup.LayoutParams.WRAP_CONTENT
-                )
+                stateButton,
+                LinearLayout.LayoutParams(dp(46), dp(46)).apply {
+                    leftMargin = dp(8)
+                }
             )
 
-            appList.addView(
-                row,
-                LinearLayout.LayoutParams(-1, -2)
-            )
-        }
+            updateButton()
 
-        if (apps.isEmpty()) {
-            appList.addView(
-                makeText("No launcher apps found.", 14f)
-            )
+            val rowParams = LinearLayout.LayoutParams(-1, -2).apply {
+                bottomMargin = dp(8)
+            }
+
+            appList.addView(row, rowParams)
         }
     }
 
-    @Deprecated("Uses the classic activity result API")
-    override fun onActivityResult(
-        requestCode: Int,
-        resultCode: Int,
-        data: Intent?
-    ) {
-        super.onActivityResult(
-            requestCode, resultCode, data
-        )
-
-        if (requestCode == VPN_REQUEST_CODE) {
-            status.text = if (resultCode == RESULT_OK) {
-                "VPN permission granted.\nFirewall is still OFF."
-            } else {
-                "VPN permission declined.\nFirewall is OFF."
-            }
+    private fun roundedBackground(
+        fillColor: Int,
+        strokeColor: Int
+    ): GradientDrawable {
+        return GradientDrawable().apply {
+            setColor(fillColor)
+            cornerRadius = dp(10).toFloat()
+            setStroke(dp(1), strokeColor)
         }
+    }
+
+    private fun dp(value: Int): Int {
+        return (value * resources.displayMetrics.density).toInt()
     }
 }
