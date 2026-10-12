@@ -9,6 +9,7 @@ import android.graphics.drawable.GradientDrawable
 import android.net.VpnService
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
 import android.view.Gravity
 import android.widget.Button
 import android.widget.LinearLayout
@@ -28,7 +29,18 @@ class MainActivity : Activity() {
     private val vpnRequestCode = 100
 
     private var startRequested = false
+    
+    private val statusHandler = Handler(android.os.Looper.getMainLooper())
 
+    private val statusRefresh = object : Runnable {
+        override fun run() {
+            if (::statusText.isInitialized) {
+                updateStatus()
+            }
+            statusHandler.postDelayed(this, 1000)
+        }
+    }
+    
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
