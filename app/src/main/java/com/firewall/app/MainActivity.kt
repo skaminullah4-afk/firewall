@@ -101,7 +101,7 @@ if (intent?.action == "com.firewall.app.START_FROM_NOTIFICATION") {
         root.addView(vpnButton, LinearLayout.LayoutParams(-1, -2))
 
         val legend = TextView(this).apply {
-            text = "□ No rule    × Block    ✓ Allow"
+            text = "× Block    ✓ Allow"
             textSize = 15f
             setTextColor(Color.LTGRAY)
             gravity = Gravity.CENTER
