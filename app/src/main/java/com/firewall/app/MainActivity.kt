@@ -66,9 +66,15 @@ if (intent?.action == "com.firewall.app.START_FROM_NOTIFICATION") {
         prefs = getSharedPreferences("firewall_rules_v2", MODE_PRIVATE)
 
         root = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(16), dp(20), dp(16), dp(16))
-            setBackgroundColor(Color.rgb(20, 23, 28))
+    orientation = LinearLayout.VERTICAL
+    setPadding(dp(16), dp(20), dp(16), dp(16))
+    background = android.graphics.drawable.BitmapDrawable(
+        resources,
+        BitmapFactory.decodeResource(
+            resources,
+            R.drawable.firewall_background
+        )
+    )
         }
 
         val title = TextView(this).apply {
