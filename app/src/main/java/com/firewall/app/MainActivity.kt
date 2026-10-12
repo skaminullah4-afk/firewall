@@ -101,16 +101,16 @@ class MainActivity : Activity() {
     }
 
     private fun toggleFirewall() {
-        if (startRequested) {
+        if (FirewallVpnService.isRunning || startRequested) {
             stopFirewall()
             return
         }
 
-        val blockedApps = prefs.all.any {
+        val hasBlockedApps = prefs.all.any {
             it.value == "block" && it.key != appPackage
         }
 
-        if (!blockedApps) {
+        if (!hasBlockedApps) {
             statusText.text = "Choose an app with a red × first."
             return
         }
@@ -137,7 +137,9 @@ class MainActivity : Activity() {
             if (resultCode == RESULT_OK) {
                 startFirewallService()
             } else {
+                startRequested = false
                 statusText.text = "VPN permission declined. Firewall is off."
+                updateStatus()
             }
         }
     }
@@ -167,7 +169,11 @@ class MainActivity : Activity() {
         }
 
         try {
-            startService(intent)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(intent)
+            } else {
+                startService(intent)
+            }
         } catch (_: Exception) {
             stopService(Intent(this, FirewallVpnService::class.java))
         }
@@ -179,30 +185,34 @@ class MainActivity : Activity() {
     private fun updateStatus() {
         if (!::statusText.isInitialized) return
 
+        val running = FirewallVpnService.isRunning
         val permissionGranted = VpnService.prepare(this) == null
 
         statusText.text = when {
+            running ->
+                "VPN SERVICE RUNNING\nWarning: routed app traffic is currently discarded."
             startRequested ->
-                "START REQUESTED\nSelected app traffic may be interrupted."
+                "START REQUESTED\nWaiting for the service status."
             permissionGranted ->
                 "FIREWALL OFF\nVPN permission granted; filtering is not running."
             else ->
                 "FIREWALL OFF\nRules are saved only, not enforced."
         }
 
-        vpnButton.text = if (startRequested) {
+        vpnButton.text = if (running || startRequested) {
             "STOP FIREWALL"
         } else {
             "START FIREWALL"
         }
 
-        // Do not let rules be edited while startup is requested.
+        val canEditRules = !running && !startRequested
+
         for (i in 0 until appList.childCount) {
             val row = appList.getChildAt(i) as? LinearLayout ?: continue
             if (row.childCount > 0) {
                 val control = row.getChildAt(row.childCount - 1)
-                control.isEnabled = !startRequested
-                control.alpha = if (startRequested) 0.5f else 1f
+                control.isEnabled = canEditRules
+                control.alpha = if (canEditRules) 1f else 0.5f
             }
         }
     }
@@ -301,6 +311,61 @@ class MainActivity : Activity() {
                             Color.rgb(155, 160, 170)
                         )
                         stateButton.contentDescription = "No rule selected"
+                    }
+                }
+            }
+
+            stateButton.setOnClickListener {
+                if (FirewallVpnService.isRunning || startRequested) {
+                    statusText.text = "Stop the firewall before changing rules."
+                    return@setOnClickListener
+                }
+
+                val current = prefs.getString(packageName, "none")
+                val next = when (current) {
+                    "none" -> "block"
+                    "block" -> "allow"
+                    else -> "none"
+                }
+
+                prefs.edit().putString(packageName, next).apply()
+                updateButton()
+            }
+
+            row.addView(
+                stateButton,
+                LinearLayout.LayoutParams(dp(46), dp(46)).apply {
+                    leftMargin = dp(8)
+                }
+            )
+
+            updateButton()
+
+            appList.addView(
+                row,
+                LinearLayout.LayoutParams(-1, -2).apply {
+                    bottomMargin = dp(8)
+                }
+            )
+        }
+    }
+
+    private fun roundedBackground(
+        fillColor: Int,
+        strokeColor: Int
+    ): GradientDrawable {
+        return GradientDrawable().apply {
+            setColor(fillColor)
+            cornerRadius = dp(10).toFloat()
+            setStroke(dp(1), strokeColor)
+        }
+    }
+
+    private fun dp(value: Int): Int {
+        return (value * resources.displayMetrics.density).toInt()
+    }
+}
+ule selected"
                     }
                 }
             }
