@@ -192,13 +192,13 @@ val builder = Builder()
         } catch (_: IOException) {
             // Expected when the VPN interface closes.
         } 
-finally {
-    if (vpnInterface === descriptor) {
-        closeVpn()
-        stopForeground(STOP_FOREGROUND_REMOVE)
-        stopSelf()
-    }
-}
+        finally {
+            if (vpnInterface === descriptor) {
+                closeVpn()
+                stopForeground(STOP_FOREGROUND_REMOVE)
+                stopSelf()
+            }
+        }
     }
 
     private fun closeVpn() {
