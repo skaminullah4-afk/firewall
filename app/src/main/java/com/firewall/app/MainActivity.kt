@@ -57,7 +57,9 @@ class MainActivity : Activity() {
 if (intent?.action == "com.firewall.app.START_FROM_NOTIFICATION") {
     intent.action = null
     window.decorView.post {
-        toggleFirewall()
+        if (!FirewallVpnService.isRunning && !startRequested) {
+            startFirewallFromNotification()
+        }
     }
 }
 
