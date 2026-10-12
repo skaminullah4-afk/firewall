@@ -28,10 +28,13 @@ class FirewallVpnService : VpnService() {
         startId: Int
     ): Int {
         if (intent?.action == ACTION_STOP) {
-            closeVpn()
-            stopForeground(STOP_FOREGROUND_REMOVE)
-            stopSelf()
-            return START_NOT_STICKY
+    closeVpn()
+    isRunning = false
+
+    createNotificationChannel()
+    startForeground(notificationId, buildNotification())
+
+    return START_NOT_STICKY
         }
 
         if (vpnInterface != null) {
