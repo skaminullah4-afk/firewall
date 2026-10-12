@@ -112,7 +112,11 @@ val builder = Builder()
             }
 
             isRunning = true
-            return START_NOT_STICKY
+
+        getSystemService(NotificationManager::class.java)
+            .notify(notificationId, buildNotification())
+
+        return START_NOT_STICKY
 
         } catch (_: Exception) {
             isRunning = false
