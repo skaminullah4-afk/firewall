@@ -131,6 +131,25 @@ if (intent?.action == "com.firewall.app.START_FROM_NOTIFICATION") {
         }
     }
 
+    private fun startFirewallFromNotification() {
+    val hasBlockedApps = prefs.all.any {
+        it.value == "block" && it.key != appPackage
+    }
+
+    if (!hasBlockedApps) {
+        statusText.text = "Choose an app with a red × first."
+        return
+    }
+
+    val permissionIntent = VpnService.prepare(this)
+
+    if (permissionIntent != null) {
+        @Suppress("DEPRECATION")
+        startActivityForResult(permissionIntent, vpnRequestCode)
+    } else {
+        startFirewallService()
+    }
+    }
     private fun toggleFirewall() {
         if (FirewallVpnService.isRunning || startRequested) {
             stopFirewall()
