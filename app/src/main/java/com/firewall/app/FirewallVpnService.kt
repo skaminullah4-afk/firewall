@@ -12,13 +12,7 @@ import java.io.FileInputStream
 import java.io.IOException
 
 class FirewallVpnService : VpnService() {
-    companion object {
-    @Volatile
-    var isRunning: Boolean = false
-        private set
 
-    const val ACTION_STOP = "com.firewall.app.STOP_FIREWALL"
-    }
     @Volatile
     private var vpnInterface: ParcelFileDescriptor? = null
 
@@ -56,6 +50,7 @@ class FirewallVpnService : VpnService() {
             .keys
 
         if (blockedApps.isEmpty()) {
+            isRunning = false
             stopSelf()
             return START_NOT_STICKY
         }
@@ -77,11 +72,12 @@ class FirewallVpnService : VpnService() {
                     builder.addAllowedApplication(app)
                     addedApps++
                 } catch (_: android.content.pm.PackageManager.NameNotFoundException) {
-                    // App may have been uninstalled.
+                    // The app may have been uninstalled.
                 }
             }
 
             if (addedApps == 0) {
+                isRunning = false
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
                 return START_NOT_STICKY
@@ -90,6 +86,7 @@ class FirewallVpnService : VpnService() {
             val descriptor = builder.establish()
 
             if (descriptor == null) {
+                isRunning = false
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
                 return START_NOT_STICKY
@@ -105,9 +102,11 @@ class FirewallVpnService : VpnService() {
                 start()
             }
 
+            isRunning = true
             return START_NOT_STICKY
 
         } catch (_: Exception) {
+            isRunning = false
             closeVpn()
             stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
@@ -161,16 +160,12 @@ class FirewallVpnService : VpnService() {
         }
 
         return builder
-            .setContentTitle("Firewall is running")
-            .setContentText("App traffic filtering is active")
+            .setContentTitle("Firewall service")
+            .setContentText("VPN service status is active")
             .setSmallIcon(android.R.drawable.ic_lock_lock)
             .setContentIntent(openPendingIntent)
             .setOngoing(true)
-            .addAction(
-                0,
-                "Stop",
-                stopPendingIntent
-            )
+            .addAction(0, "Stop", stopPendingIntent)
             .build()
     }
 
@@ -188,12 +183,11 @@ class FirewallVpnService : VpnService() {
                     val length = input.read(packet)
                     if (length <= 0) break
 
-                    // Intentionally discard packets.
-                    // This service does not forward traffic.
+                    // Packets are discarded, not forwarded.
                 }
             }
         } catch (_: IOException) {
-            // Expected when the interface closes.
+            // Expected when the VPN interface closes.
         } finally {
             if (vpnInterface === descriptor) {
                 closeVpn()
@@ -204,6 +198,8 @@ class FirewallVpnService : VpnService() {
     }
 
     private fun closeVpn() {
+        isRunning = false
+
         val oldInterface = vpnInterface
         vpnInterface = null
 
@@ -233,6 +229,10 @@ class FirewallVpnService : VpnService() {
     override fun onBind(intent: Intent) = super.onBind(intent)
 
     companion object {
+        @Volatile
+        var isRunning: Boolean = false
+            private set
+
         const val ACTION_STOP = "com.firewall.app.STOP_FIREWALL"
     }
 }
