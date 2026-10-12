@@ -142,6 +142,18 @@ val builder = Builder()
             PendingIntent.FLAG_UPDATE_CURRENT or
                 PendingIntent.FLAG_IMMUTABLE
         )
+ 
+val startApp = Intent(this, MainActivity::class.java).apply {
+    action = "com.firewall.app.START_FROM_NOTIFICATION"
+}
+
+val startPendingIntent = PendingIntent.getActivity(
+    this,
+    3,
+    startApp,
+    PendingIntent.FLAG_UPDATE_CURRENT or
+        PendingIntent.FLAG_IMMUTABLE
+)
 
         val stopIntent = Intent(this, FirewallVpnService::class.java).apply {
             action = ACTION_STOP
