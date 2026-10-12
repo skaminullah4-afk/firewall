@@ -53,7 +53,13 @@ class MainActivity : Activity() {
     }
     
     override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
+        super.onCreate(savedInstanceState)      
+if (intent?.action == "com.firewall.app.START_FROM_NOTIFICATION") {
+    intent.action = null
+    window.decorView.post {
+        toggleFirewall()
+    }
+}
 
         prefs = getSharedPreferences("firewall_rules_v2", MODE_PRIVATE)
 
