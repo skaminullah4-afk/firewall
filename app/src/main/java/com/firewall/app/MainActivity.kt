@@ -294,14 +294,11 @@ if (intent?.action == "com.firewall.app.START_FROM_NOTIFICATION") {
             val label = info.loadLabel(packageManager).toString()
 
             val row = LinearLayout(this).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity = Gravity.CENTER_VERTICAL
-                setPadding(dp(8), dp(8), dp(8), dp(8))
-                background = roundedBackground(
-                    Color.rgb(34, 39, 47),
-                    Color.rgb(60, 67, 77)
-                )
-            }
+    orientation = LinearLayout.HORIZONTAL
+    gravity = Gravity.CENTER_VERTICAL
+    setPadding(dp(8), dp(8), dp(8), dp(8))
+    setBackgroundColor(Color.TRANSPARENT)
+}
 
             val iconView = ImageView(this).apply {
                 setImageDrawable(info.loadIcon(packageManager))
