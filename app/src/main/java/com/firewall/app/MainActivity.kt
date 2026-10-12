@@ -96,8 +96,11 @@ if (intent?.action == "com.firewall.app.START_FROM_NOTIFICATION") {
         root.addView(statusText, LinearLayout.LayoutParams(-1, -2))
 
         vpnButton = Button(this).apply {
-            text = "START FIREWALL"
-            setOnClickListener { toggleFirewall() }
+    text = "START FIREWALL"
+    setTextColor(Color.WHITE)
+    setBackgroundColor(Color.TRANSPARENT)
+    stateListAnimator = null
+    setOnClickListener { toggleFirewall() }
         }
         root.addView(vpnButton, LinearLayout.LayoutParams(-1, -2))
 
