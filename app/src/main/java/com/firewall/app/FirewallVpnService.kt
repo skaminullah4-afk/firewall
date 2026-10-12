@@ -183,8 +183,11 @@ val startPendingIntent = PendingIntent.getActivity(
             .setSmallIcon(android.R.drawable.ic_lock_lock)
             .setContentIntent(openPendingIntent)    
             .setOngoing(true)
-            .addAction(0, "Start", startPendingIntent)
-            .addAction(0, "Stop", stopPendingIntent)
+            .addAction(
+    0,
+    if (isRunning) "Stop" else "Start",
+    if (isRunning) stopPendingIntent else startPendingIntent
+)
             .build()
     }
 
