@@ -342,19 +342,13 @@ if (intent?.action == "com.firewall.app.START_FROM_NOTIFICATION") {
                     "block" -> {
                         stateButton.text = "×"
                         stateButton.setTextColor(Color.rgb(255, 65, 65))
-                        stateButton.background = roundedBackground(
-                            Color.rgb(65, 27, 30),
-                            Color.rgb(255, 65, 65)
-                        )
+                        stateButton.setBackgroundColor(Color.TRANSPARENT)
                         stateButton.contentDescription = "Marked to block"
                     }
                     "allow" -> {
                         stateButton.text = "✓"
                         stateButton.setTextColor(Color.rgb(50, 230, 130))
-                        stateButton.background = roundedBackground(
-                            Color.rgb(24, 59, 43),
-                            Color.rgb(50, 230, 130)
-                        )
+                        stateButton.setBackgroundColor(Color.TRANSPARENT)
                         stateButton.contentDescription = "Marked to allow"
                     }
                     else -> {
