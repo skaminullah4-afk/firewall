@@ -178,8 +178,9 @@ val startPendingIntent = PendingIntent.getActivity(
             .setContentTitle("Firewall service")
             .setContentText("VPN service status is active")
             .setSmallIcon(android.R.drawable.ic_lock_lock)
-            .setContentIntent(openPendingIntent)
+            .setContentIntent(openPendingIntent)    
             .setOngoing(true)
+            .addAction(0, "Start", startPendingIntent)
             .addAction(0, "Stop", stopPendingIntent)
             .build()
     }
