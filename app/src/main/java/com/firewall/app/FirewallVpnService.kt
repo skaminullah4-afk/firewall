@@ -1,7 +1,5 @@
 package com.firewall.app
 
-import android.graphics.BitmapFactory
-import android.widget.RemoteViews
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -29,22 +27,23 @@ class FirewallVpnService : VpnService() {
         flags: Int,
         startId: Int
     ): Int {
-        if (intent?.action == ACTION_START) {
-    closeVpn()
-        }
-        if (intent?.action == ACTION_STOP) {
-    closeVpn()
-    isRunning = false
+        when (intent?.action) {
+            ACTION_STOP, ACTION_STOP_NIGHT -> {
+                closeVpn()
+                isRunning = false
+                stopForeground(STOP_FOREGROUND_REMOVE)
+                stopSelf()
+                return START_NOT_STICKY
+            }
 
-    createNotificationChannel()
-    startForeground(notificationId, buildNotification())
-
-    return START_NOT_STICKY
+            ACTION_START, ACTION_START_NIGHT -> {
+                closeVpn()
+            }
         }
 
-        if (vpnInterface != null) {
-            return START_NOT_STICKY
-        }
+        if (vpnInterface != null) return START_NOT_STICKY
+
+        val nightMode = intent?.action == ACTION_START_NIGHT
 
         val prefs = getSharedPreferences(
             "firewall_rules_v2",
@@ -52,12 +51,10 @@ class FirewallVpnService : VpnService() {
         )
 
         val blockedApps = prefs.all
-            .filter { entry ->
-                entry.value == "block" && entry.key != packageName
-            }
+            .filter { it.value == "block" && it.key != packageName }
             .keys
 
-        if (blockedApps.isEmpty()) {
+        if (!nightMode && blockedApps.isEmpty()) {
             isRunning = false
             stopSelf()
             return START_NOT_STICKY
@@ -66,32 +63,39 @@ class FirewallVpnService : VpnService() {
         try {
             createNotificationChannel()
             startForeground(notificationId, buildNotification())
-      
-val builder = Builder()
-    .setSession("Firewall")
-    .addAddress("10.10.0.1", 32)
-    .addRoute("0.0.0.0", 0)
-    .addAddress("fd00:1:fd00:1::1", 128)
-    .addRoute("::", 0)
-    .setMtu(1500)
-    .setBlocking(true)
-    
-            var addedApps = 0
 
-            for (app in blockedApps) {
-                try {
-                    builder.addAllowedApplication(app)
-                    addedApps++
-                } catch (_: android.content.pm.PackageManager.NameNotFoundException) {
-                    // The app may have been uninstalled.
+            val builder = Builder()
+                .setSession(
+                    if (nightMode) "Death Reminder — Night Block"
+                    else "Death Reminder — App Firewall"
+                )
+                .addAddress("10.10.0.1", 32)
+                .addRoute("0.0.0.0", 0)
+                .addAddress("fd00:1:fd00:1::1", 128)
+                .addRoute("::", 0)
+                .setMtu(1500)
+                .setBlocking(true)
+
+            // Night mode captures all apps.
+            // Manual mode captures only apps marked "block".
+            if (!nightMode) {
+                var addedApps = 0
+
+                for (app in blockedApps) {
+                    try {
+                        builder.addAllowedApplication(app)
+                        addedApps++
+                    } catch (_: android.content.pm.PackageManager.NameNotFoundException) {
+                        // The app may have been uninstalled.
+                    }
                 }
-            }
 
-            if (addedApps == 0) {
-                isRunning = false
-                stopForeground(STOP_FOREGROUND_REMOVE)
-                stopSelf()
-                return START_NOT_STICKY
+                if (addedApps == 0) {
+                    isRunning = false
+                    stopForeground(STOP_FOREGROUND_REMOVE)
+                    stopSelf()
+                    return START_NOT_STICKY
+                }
             }
 
             val descriptor = builder.establish()
@@ -108,18 +112,16 @@ val builder = Builder()
             packetThread = Thread {
                 discardPackets(descriptor)
             }.apply {
-                name = "FirewallPacketDropper"
+                name = "DeathReminderPacketBlocker"
                 isDaemon = true
                 start()
             }
 
             isRunning = true
+            getSystemService(NotificationManager::class.java)
+                .notify(notificationId, buildNotification())
 
-        getSystemService(NotificationManager::class.java)
-            .notify(notificationId, buildNotification())
-
-        return START_NOT_STICKY
-
+            return START_NOT_STICKY
         } catch (_: Exception) {
             isRunning = false
             closeVpn()
@@ -133,10 +135,10 @@ val builder = Builder()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 channelId,
-                "Firewall status",
+                "Death Reminder firewall",
                 NotificationManager.IMPORTANCE_DEFAULT
             ).apply {
-                description = "Shows when Firewall is active"
+                description = "Shows firewall status"
             }
 
             getSystemService(NotificationManager::class.java)
@@ -145,27 +147,15 @@ val builder = Builder()
     }
 
     private fun buildNotification(): Notification {
-        val openApp = Intent(this, MainActivity::class.java)
+        val openIntent = Intent(this, MainActivity::class.java)
 
         val openPendingIntent = PendingIntent.getActivity(
             this,
             1,
-            openApp,
+            openIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or
                 PendingIntent.FLAG_IMMUTABLE
         )
-
- val startIntent = Intent(this, FirewallVpnService::class.java).apply {
-action = ACTION_START
-}
-
-val startPendingIntent = PendingIntent.getService(
-this,
-3,
-startIntent,
-PendingIntent.FLAG_UPDATE_CURRENT or
-PendingIntent.FLAG_IMMUTABLE
-)
 
         val stopIntent = Intent(this, FirewallVpnService::class.java).apply {
             action = ACTION_STOP
@@ -186,34 +176,20 @@ PendingIntent.FLAG_IMMUTABLE
             Notification.Builder(this)
         }
 
-        val artwork = BitmapFactory.decodeResource(
-    resources,
-    R.drawable.notification_wallpaper
-)
-
-return builder
-    .setLargeIcon(artwork)
-    .setStyle(
-        Notification.BigPictureStyle()
-            .bigPicture(artwork)
-            .bigLargeIcon(null as android.graphics.Bitmap?)
-    )
-    .setContentTitle("Firewall service")
-            .setContentText("VPN service status is active")
+        return builder
+            .setContentTitle("Death Reminder")
+            .setContentText(
+                if (isRunning) "Firewall VPN is active"
+                else "Firewall VPN is stopped"
+            )
             .setSmallIcon(android.R.drawable.ic_lock_lock)
-            .setContentIntent(openPendingIntent)    
+            .setContentIntent(openPendingIntent)
             .setOngoing(true)
-            .addAction(
-    0,
-    if (isRunning) "Stop" else "Start",
-    if (isRunning) stopPendingIntent else startPendingIntent
-)
+            .addAction(0, "Stop VPN", stopPendingIntent)
             .build()
     }
 
-    private fun discardPackets(
-        descriptor: ParcelFileDescriptor
-    ) {
+    private fun discardPackets(descriptor: ParcelFileDescriptor) {
         try {
             FileInputStream(descriptor.fileDescriptor).use { input ->
                 val packet = ByteArray(32767)
@@ -222,16 +198,13 @@ return builder
                     !Thread.currentThread().isInterrupted &&
                     vpnInterface === descriptor
                 ) {
-                    val length = input.read(packet)
-                    if (length <= 0) break
-
-                    // Packets are discarded, not forwarded.
+                    if (input.read(packet) <= 0) break
+                    // Intentionally discard captured traffic.
                 }
             }
         } catch (_: IOException) {
-            // Expected when the VPN interface closes.
-        } 
-        finally {
+            // The VPN may have been closed.
+        } finally {
             if (vpnInterface === descriptor) {
                 closeVpn()
                 stopForeground(STOP_FOREGROUND_REMOVE)
@@ -269,14 +242,20 @@ return builder
         super.onDestroy()
     }
 
-    override fun onBind(intent: Intent) = super.onBind(intent)
+    override fun onBind(intent: Intent?) = super.onBind(intent)
 
     companion object {
         @Volatile
         var isRunning: Boolean = false
             private set
 
-        const val ACTION_STOP = "com.firewall.app.STOP_FIREWALL"
-const val ACTION_START = "com.firewall.app.START_FIREWALL"
+        const val ACTION_STOP =
+            "com.firewall.app.STOP_FIREWALL"
+        const val ACTION_START =
+            "com.firewall.app.START_FIREWALL"
+        const val ACTION_START_NIGHT =
+            "com.firewall.app.START_NIGHT"
+        const val ACTION_STOP_NIGHT =
+            "com.firewall.app.STOP_NIGHT"
     }
 }
