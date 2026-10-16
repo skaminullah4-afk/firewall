@@ -10,7 +10,7 @@ class NightScheduleReceiver : BroadcastReceiver() {
             Intent.ACTION_BOOT_COMPLETED,
             Intent.ACTION_TIME_CHANGED,
             Intent.ACTION_TIMEZONE_CHANGED -> {
-                NightSchedule.scheduleNext(context)
+                NightSchedule.reconcile(context)
             }
 
             ACTION_NIGHT_START -> {
