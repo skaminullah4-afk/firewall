@@ -256,6 +256,20 @@ private fun updateNightStatus() {
     ) {
         super.onActivityResult(requestCode, resultCode, data)
 
+        if (requestCode == vpnRequestCode + 1) {
+    if (resultCode == RESULT_OK) {
+        NightSchedule.setEnabled(this, true)
+        updateNightStatus()
+        statusText.text =
+            "Night schedule enabled: 10:30 PM–5:00 AM."
+    } else {
+        statusText.text =
+            "VPN permission declined. Night schedule is off."
+        updateNightStatus()
+    }
+    return
+        }
+        
         if (requestCode == vpnRequestCode) {
             if (resultCode == RESULT_OK) {
                 startFirewallService()
