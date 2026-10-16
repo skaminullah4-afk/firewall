@@ -45,7 +45,38 @@ object NightSchedule {
             (hour == 22 && minute >= 30) ||
             hour < 5
     }
+    
+    // Reconcile state after reboot or a clock/time-zone change.
+    fun reconcile(context: Context) {
+        if (!isEnabled(context)) {
+            if (FirewallVpnService.isRunning) {
+                stopNightBlock(context)
+            } else {
+                context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+                    .edit()
+                    .putBoolean(KEY_ACTIVE, false)
+                    .apply()
+            }
+            scheduleNext(context)
+            return
+        }
 
+        if (isNightTime()) {
+            startNightBlock(context)
+        } else if (isNightActive(context)) {
+            if (FirewallVpnService.isRunning) {
+                stopNightBlock(context)
+            } else {
+                context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+                    .edit()
+                    .putBoolean(KEY_ACTIVE, false)
+                    .apply()
+            }
+        }
+
+        scheduleNext(context)
+    }
+    
     fun scheduleNext(context: Context) {
         val manager =
             context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
