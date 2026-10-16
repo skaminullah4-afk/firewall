@@ -29,7 +29,7 @@
     <application
         android:allowBackup="false"
         android:icon="@drawable/gojo_icon"
-        android:label="Firewall"
+        android:label="Death Reminder"
         android:theme="@android:style/Theme.Material.Light.NoActionBar"
         android:usesCleartextTraffic="false">
 
