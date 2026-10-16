@@ -218,6 +218,21 @@ private fun toggleNightSchedule() {
         return
     }
 
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+    val alarmManager = getSystemService(AlarmManager::class.java)
+
+    if (!alarmManager.canScheduleExactAlarms()) {
+        val alarmIntent = Intent(
+            Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,
+            Uri.parse("package:$packageName")
+        )
+        statusText.text =
+            "Allow Alarms & reminders, then return and enable the night schedule."
+        startActivity(alarmIntent)
+        return
+    }
+    }
+
     val permissionIntent = VpnService.prepare(this)
 
     if (permissionIntent != null) {
