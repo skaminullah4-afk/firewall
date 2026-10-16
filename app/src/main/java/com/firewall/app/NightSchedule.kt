@@ -17,34 +17,47 @@ object NightSchedule {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .getBoolean(KEY_ENABLED, false)
 
+    fun isNightActive(context: Context): Boolean =
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .getBoolean(KEY_ACTIVE, false)
+
     fun setEnabled(context: Context, enabled: Boolean) {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .edit()
             .putBoolean(KEY_ENABLED, enabled)
             .apply()
+
+        if (enabled && isNightTime()) {
+            startNightBlock(context)
+        } else if (!enabled) {
+            stopNightBlock(context)
+        }
+
         scheduleNext(context)
     }
 
-    fun isNightActive(context: Context): Boolean =
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .getBoolean(KEY_ACTIVE, false)
-
-    fun scheduleNext(context: Context) {
-        val alarmManager =
-            context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-
-        if (!isEnabled(context)) {
-            cancelAlarm(context, alarmManager, NightScheduleReceiver.ACTION_NIGHT_START)
-            cancelAlarm(context, alarmManager, NightScheduleReceiver.ACTION_NIGHT_END)
-            return
-        }
-
+    private fun isNightTime(): Boolean {
         val now = Calendar.getInstance()
         val hour = now.get(Calendar.HOUR_OF_DAY)
         val minute = now.get(Calendar.MINUTE)
-        val nightNow = hour > 22 || (hour == 22 && minute >= 30) || hour < 5
 
-        val action = if (nightNow) {
+        return hour > 22 ||
+            (hour == 22 && minute >= 30) ||
+            hour < 5
+    }
+
+    fun scheduleNext(context: Context) {
+        val manager =
+            context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+
+        if (!isEnabled(context)) {
+            cancelAlarm(context, manager, NightScheduleReceiver.ACTION_NIGHT_START)
+            cancelAlarm(context, manager, NightScheduleReceiver.ACTION_NIGHT_END)
+            return
+        }
+
+        val ending = isNightTime()
+        val action = if (ending) {
             NightScheduleReceiver.ACTION_NIGHT_END
         } else {
             NightScheduleReceiver.ACTION_NIGHT_START
@@ -53,44 +66,52 @@ object NightSchedule {
         val next = Calendar.getInstance().apply {
             set(Calendar.SECOND, 0)
             set(Calendar.MILLISECOND, 0)
-            if (action == NightScheduleReceiver.ACTION_NIGHT_END) {
+
+            if (ending) {
                 set(Calendar.HOUR_OF_DAY, 5)
                 set(Calendar.MINUTE, 0)
             } else {
                 set(Calendar.HOUR_OF_DAY, 22)
                 set(Calendar.MINUTE, 30)
             }
-            if (!after(now)) add(Calendar.DAY_OF_YEAR, 1)
+
+            if (timeInMillis <= System.currentTimeMillis()) {
+                add(Calendar.DAY_OF_YEAR, 1)
+            }
         }
 
-        val intent = Intent(context, NightScheduleReceiver::class.java).apply {
+        val alarmIntent = Intent(context, NightScheduleReceiver::class.java).apply {
             this.action = action
         }
+
+        val requestCode =
+            if (ending) REQUEST_END else REQUEST_START
+
         val pending = PendingIntent.getBroadcast(
             context,
-            if (action == NightScheduleReceiver.ACTION_NIGHT_START) 301 else 302,
-            intent,
+            requestCode,
+            alarmIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
-                !alarmManager.canScheduleExactAlarms()
+                !manager.canScheduleExactAlarms()
             ) {
-                alarmManager.setAndAllowWhileIdle(
+                manager.setAndAllowWhileIdle(
                     AlarmManager.RTC_WAKEUP,
                     next.timeInMillis,
                     pending
                 )
             } else {
-                alarmManager.setExactAndAllowWhileIdle(
+                manager.setExactAndAllowWhileIdle(
                     AlarmManager.RTC_WAKEUP,
                     next.timeInMillis,
                     pending
                 )
             }
         } catch (_: SecurityException) {
-            alarmManager.setAndAllowWhileIdle(
+            manager.setAndAllowWhileIdle(
                 AlarmManager.RTC_WAKEUP,
                 next.timeInMillis,
                 pending
@@ -104,16 +125,23 @@ object NightSchedule {
         action: String
     ) {
         val requestCode =
-            if (action == NightScheduleReceiver.ACTION_NIGHT_START) 301 else 302
+            if (action == NightScheduleReceiver.ACTION_NIGHT_START) {
+                REQUEST_START
+            } else {
+                REQUEST_END
+            }
+
         val intent = Intent(context, NightScheduleReceiver::class.java).apply {
             this.action = action
         }
+
         val pending = PendingIntent.getBroadcast(
             context,
             requestCode,
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
+
         manager.cancel(pending)
     }
 
@@ -121,11 +149,14 @@ object NightSchedule {
         if (!isEnabled(context)) return
 
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .edit().putBoolean(KEY_ACTIVE, true).apply()
+            .edit()
+            .putBoolean(KEY_ACTIVE, true)
+            .apply()
 
         val intent = Intent(context, FirewallVpnService::class.java).apply {
             action = FirewallVpnService.ACTION_START_NIGHT
         }
+
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 context.startForegroundService(intent)
@@ -133,17 +164,23 @@ object NightSchedule {
                 context.startService(intent)
             }
         } catch (_: Exception) {
-            // The app must report that automatic blocking could not start.
+            context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+                .edit()
+                .putBoolean(KEY_ACTIVE, false)
+                .apply()
         }
     }
 
     fun stopNightBlock(context: Context) {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .edit().putBoolean(KEY_ACTIVE, false).apply()
+            .edit()
+            .putBoolean(KEY_ACTIVE, false)
+            .apply()
 
         val intent = Intent(context, FirewallVpnService::class.java).apply {
             action = FirewallVpnService.ACTION_STOP_NIGHT
         }
+
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 context.startForegroundService(intent)
@@ -151,7 +188,10 @@ object NightSchedule {
                 context.startService(intent)
             }
         } catch (_: Exception) {
-            // The app must report if the VPN could not be stopped.
+            // Android may prevent background service starts.
         }
     }
+
+    private const val REQUEST_START = 301
+    private const val REQUEST_END = 302
 }
