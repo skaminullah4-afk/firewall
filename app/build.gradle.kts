@@ -20,11 +20,11 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-dependencies {
-    implementation("com.batoulapps.adhan:adhan2:0.0.7")
-}
-
     kotlinOptions {
         jvmTarget = "17"
     }
+}
+
+dependencies {
+    implementation("com.batoulapps.adhan:adhan2:0.0.7")
 }
