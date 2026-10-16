@@ -2,6 +2,9 @@ package com.firewall.app
 
 import android.app.Activity
 import android.content.Intent
+import android.app.AlarmManager
+import android.net.Uri
+import android.provider.Settings
 import android.content.SharedPreferences
 import android.graphics.BitmapFactory
 import android.graphics.Color
