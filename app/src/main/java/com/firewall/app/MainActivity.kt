@@ -150,8 +150,9 @@ root.addView(nightButton, LinearLayout.LayoutParams(-1, -2))
         root.addView(scrollView, LinearLayout.LayoutParams(-1, 0, 1f))
 
         setContentView(root)
-        loadInstalledApps()
-        updateStatus()
+loadInstalledApps()
+updateStatus()
+updateNightStatus()
     }
 
     override fun onResume() {
