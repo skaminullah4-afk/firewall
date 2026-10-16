@@ -79,7 +79,7 @@ if (intent?.action == "com.firewall.app.START_FROM_NOTIFICATION") {
         }
 
         val title = TextView(this).apply {
-            text = "FIREWALL"
+            text = "DEATH REMINDER"
             textSize = 28f
             setTextColor(Color.WHITE)
             typeface = Typeface.DEFAULT_BOLD
