@@ -23,6 +23,8 @@ class MainActivity : Activity() {
     private lateinit var root: LinearLayout
     private lateinit var statusText: TextView
     private lateinit var vpnButton: Button
+    private lateinit var nightButton: Button
+    private lateinit var nightStatusText: TextView
     private lateinit var appList: LinearLayout
     private lateinit var prefs: SharedPreferences
 
