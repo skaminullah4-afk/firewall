@@ -205,6 +205,49 @@ root.addView(nightButton, LinearLayout.LayoutParams(-1, -2))
         }
     }
 
+    
+private fun toggleNightSchedule() {
+    if (NightSchedule.isEnabled(this)) {
+        NightSchedule.setEnabled(this, false)
+        updateNightStatus()
+        statusText.text = "Night schedule disabled."
+        return
+    }
+
+    val permissionIntent = VpnService.prepare(this)
+
+    if (permissionIntent != null) {
+        statusText.text = "Allow the VPN permission to enable night blocking."
+        @Suppress("DEPRECATION")
+        startActivityForResult(permissionIntent, vpnRequestCode + 1)
+    } else {
+        NightSchedule.setEnabled(this, true)
+        updateNightStatus()
+        statusText.text = "Night schedule enabled: 10:30 PM–5:00 AM."
+    }
+}
+
+private fun updateNightStatus() {
+    if (!::nightButton.isInitialized ||
+        !::nightStatusText.isInitialized
+    ) return
+
+    val enabled = NightSchedule.isEnabled(this)
+    val active = NightSchedule.isNightActive(this)
+
+    nightButton.text = if (enabled) {
+        "TURN NIGHT SCHEDULE OFF"
+    } else {
+        "TURN NIGHT SCHEDULE ON"
+    }
+
+    nightStatusText.text = when {
+        !enabled -> "NIGHT BLOCK: DISABLED"
+        active -> "NIGHT BLOCK: ACTIVE (10:30 PM–5:00 AM)"
+        else -> "NIGHT SCHEDULE: ON — BLOCKING STARTS AT 10:30 PM"
+    }
+}
+
     @Deprecated("Uses compatible VPN permission callback")
     override fun onActivityResult(
         requestCode: Int,
