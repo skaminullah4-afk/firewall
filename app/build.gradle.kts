@@ -27,4 +27,5 @@ android {
 
 dependencies {
     implementation("com.batoulapps.adhan:adhan2:0.0.7")
+    implementation("org.jetbrains.kotlin:kotlin-stdlib:2.0.21")
 }
