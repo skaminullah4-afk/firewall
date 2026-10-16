@@ -97,6 +97,24 @@ if (intent?.action == "com.firewall.app.START_FROM_NOTIFICATION") {
         }
         root.addView(statusText, LinearLayout.LayoutParams(-1, -2))
 
+        nightStatusText = TextView(this).apply {
+    textSize = 14f
+    setTextColor(Color.rgb(255, 190, 70))
+    gravity = Gravity.CENTER
+    setPadding(dp(8), dp(12), dp(8), dp(4))
+}
+root.addView(nightStatusText, LinearLayout.LayoutParams(-1, -2))
+
+nightButton = Button(this).apply {
+    setTextColor(Color.WHITE)
+    setBackgroundColor(Color.TRANSPARENT)
+    stateListAnimator = null
+    setOnClickListener {
+        toggleNightSchedule()
+    }
+}
+root.addView(nightButton, LinearLayout.LayoutParams(-1, -2))
+
         vpnButton = Button(this).apply {
     text = "START FIREWALL"
     setTextColor(Color.WHITE)
