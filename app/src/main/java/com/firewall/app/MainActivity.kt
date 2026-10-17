@@ -237,6 +237,46 @@ updateNightStatus()
         }
     }
 
+    private fun toggleCustomFilters() {
+    val filterPrefs = getSharedPreferences(
+        "custom_filter_settings",
+        MODE_PRIVATE
+    )
+
+    val enabled = filterPrefs.getBoolean(
+        "enabled",
+        false
+    )
+
+    filterPrefs.edit()
+        .putBoolean("enabled", !enabled)
+        .apply()
+
+    updateCustomFilterStatus()
+}
+
+private fun updateCustomFilterStatus() {
+    if (!::customFilterButton.isInitialized ||
+        !::customFilterStatus.isInitialized
+    ) return
+
+    val enabled = getSharedPreferences(
+        "custom_filter_settings",
+        MODE_PRIVATE
+    ).getBoolean("enabled", false)
+
+    customFilterButton.text = if (enabled) {
+        "CUSTOM FILTERS ON"
+    } else {
+        "CUSTOM FILTERS OFF"
+    }
+
+    customFilterStatus.text = if (enabled) {
+        "CUSTOM FILTERS: ON"
+    } else {
+        "CUSTOM FILTERS: OFF"
+    }
+}
     
 private fun toggleNightSchedule() {
     if (NightSchedule.isEnabled(this)) {
