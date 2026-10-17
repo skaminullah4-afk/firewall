@@ -467,6 +467,12 @@ private fun loadCustomRules() {
         val address = rule.optString("address", "*")
         val port = rule.optInt("port", 0)
         val action = rule.optString("action", "block")
+        val packageName = rule.optString("packageName", "")
+val appLabel = if (packageName.isBlank()) {
+    "Global"
+} else {
+    packageName
+}
         val wifi = rule.optBoolean("wifi", false)
         val mobile = rule.optBoolean("mobile", false)
 
