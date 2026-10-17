@@ -859,8 +859,12 @@ row.addView(details, LinearLayout.LayoutParams(0, -2, 1f))
     AlertDialog.Builder(this)
         .setTitle("$appLabel — Custom Filters")
         .setMessage(message)
-        .setPositiveButton("Close", null)
-        .show()
+        .setPositiveButton("New Filter") { _, _ ->
+    selectedFilterPackage = packageName
+    showNewCustomFilterDialog()
+}
+.setNegativeButton("Close", null)
+.show()
     }
 
     private fun roundedBackground(
