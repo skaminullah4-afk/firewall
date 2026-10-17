@@ -179,9 +179,14 @@ class FirewallVpnService : VpnService() {
         return builder
             .setContentTitle("Death Reminder")
             .setContentText(
-                if (isRunning) "Firewall VPN is active"
-                else "Firewall VPN is stopped"
-            )
+    if (isRunning && NightSchedule.isNightActive(this)) {
+        "Lockdown Active — Internet blocked"
+    } else if (isRunning) {
+        "Firewall is active"
+    } else {
+        "Firewall is stopped"
+    }
+)
             .setSmallIcon(android.R.drawable.ic_lock_lock)
             .setContentIntent(openPendingIntent)
             .setOngoing(true)
