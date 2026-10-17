@@ -413,6 +413,7 @@ private fun showNewCustomFilterDialog() {
                         if (actionGroup.checkedRadioButtonId == allow.id)
                             "allow" else "block"
                     )
+                    put("packageName", selectedFilterPackage ?: "")
                 }
 
                 val filterPrefs = getSharedPreferences(
