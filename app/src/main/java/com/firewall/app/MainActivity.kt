@@ -36,6 +36,7 @@ class MainActivity : Activity() {
     private lateinit var appList: LinearLayout
     private lateinit var prefs: SharedPreferences
     private lateinit var customFilterButton: Button
+    private lateinit var customRulesList: LinearLayout
     private lateinit var customFilterStatus: TextView
     private lateinit var newCustomFilterButton: Button
 
