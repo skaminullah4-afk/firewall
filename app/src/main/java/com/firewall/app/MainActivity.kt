@@ -109,6 +109,14 @@ if (intent?.action == "com.firewall.app.START_FROM_NOTIFICATION") {
         }
         root.addView(statusText, LinearLayout.LayoutParams(-1, -2))
 
+        customRulesList = LinearLayout(this).apply {
+    orientation = LinearLayout.VERTICAL
+}
+root.addView(
+    customRulesList,
+    LinearLayout.LayoutParams(-1, -2)
+)
+
         newCustomFilterButton = Button(this).apply {
     text = "NEW CUSTOM FILTER"
     setTextColor(Color.WHITE)
