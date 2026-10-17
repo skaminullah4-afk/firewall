@@ -332,7 +332,7 @@ private fun showNewCustomFilterDialog() {
     val port = EditText(this).apply {
         hint = "Port number (1–65535)"
         inputType = android.text.InputType.TYPE_CLASS_NUMBER
-        singleLine = true
+        isSingleLine = true
     }
 
     val actionGroup = RadioGroup(this).apply {
