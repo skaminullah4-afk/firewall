@@ -32,6 +32,7 @@ class MainActivity : Activity() {
     private lateinit var prefs: SharedPreferences
     private lateinit var customFilterButton: Button
     private lateinit var customFilterStatus: TextView
+    private lateinit var newCustomFilterButton: Button
 
     private val appPackage = "com.firewall.app"
     private val vpnRequestCode = 100
