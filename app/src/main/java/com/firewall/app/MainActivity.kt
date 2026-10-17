@@ -44,6 +44,7 @@ class MainActivity : Activity() {
     private val vpnRequestCode = 100
 
     private var startRequested = false
+    private var selectedFilterPackage: String? = null
     
     private val statusHandler = Handler(android.os.Looper.getMainLooper())
 
