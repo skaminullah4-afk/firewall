@@ -440,6 +440,76 @@ private fun showNewCustomFilterDialog() {
 
     dialog.show()
 }
+
+
+private fun loadCustomRules() {
+    if (!::customRulesList.isInitialized) return
+
+    customRulesList.removeAllViews()
+
+    val filterPrefs = getSharedPreferences(
+        "custom_filter_settings",
+        MODE_PRIVATE
+    )
+
+    val rules = org.json.JSONArray(
+        filterPrefs.getString("rules", "[]")
+    )
+
+    for (i in 0 until rules.length()) {
+        val rule = rules.optJSONObject(i) ?: continue
+
+        val address = rule.optString("address", "*")
+        val port = rule.optInt("port", 0)
+        val action = rule.optString("action", "block")
+        val wifi = rule.optBoolean("wifi", false)
+        val mobile = rule.optBoolean("mobile", false)
+
+        val row = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(8), dp(4), dp(8), dp(4))
+        }
+
+        val details = TextView(this).apply {
+            text = "$action  $address:$port\n" +
+                "Wi-Fi: ${if (wifi) "Yes" else "No"}  |  " +
+                "Mobile: ${if (mobile) "Yes" else "No"}"
+            setTextColor(Color.WHITE)
+            textSize = 13f
+        }
+
+        val deleteButton = Button(this).apply {
+            text = "DELETE"
+            setTextColor(Color.rgb(255, 100, 100))
+            setBackgroundColor(Color.TRANSPARENT)
+            setOnClickListener {
+                val updated = org.json.JSONArray()
+                for (index in 0 until rules.length()) {
+                    if (index != i) {
+                        updated.put(rules.getJSONObject(index))
+                    }
+                }
+
+                filterPrefs.edit()
+                    .putString("rules", updated.toString())
+                    .apply()
+
+                loadCustomRules()
+            }
+        }
+
+        row.addView(
+            details,
+            LinearLayout.LayoutParams(0, -2, 1f)
+        )
+        row.addView(deleteButton)
+        customRulesList.addView(
+            row,
+            LinearLayout.LayoutParams(-1, -2)
+        )
+    }
+}
     
 private fun toggleNightSchedule() {
     if (NightSchedule.isEnabled(this)) {
