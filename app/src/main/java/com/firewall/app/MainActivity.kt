@@ -102,6 +102,32 @@ if (intent?.action == "com.firewall.app.START_FROM_NOTIFICATION") {
         }
         root.addView(statusText, LinearLayout.LayoutParams(-1, -2))
 
+        customFilterStatus = TextView(this).apply {
+    text = "CUSTOM FILTERS: OFF"
+    textSize = 14f
+    setTextColor(Color.rgb(255, 190, 70))
+    gravity = Gravity.CENTER
+    setPadding(dp(8), dp(8), dp(8), dp(4))
+}
+root.addView(
+    customFilterStatus,
+    LinearLayout.LayoutParams(-1, -2)
+)
+
+customFilterButton = Button(this).apply {
+    text = "CUSTOM FILTERS OFF"
+    setTextColor(Color.WHITE)
+    setBackgroundColor(Color.TRANSPARENT)
+    stateListAnimator = null
+    setOnClickListener {
+        toggleCustomFilters()
+    }
+}
+root.addView(
+    customFilterButton,
+    LinearLayout.LayoutParams(-1, -2)
+)
+
         nightStatusText = TextView(this).apply {
     textSize = 14f
     setTextColor(Color.rgb(255, 190, 70))
