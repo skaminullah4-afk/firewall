@@ -484,8 +484,9 @@ val appLabel = if (packageName.isBlank()) {
 
         val details = TextView(this).apply {
             text = "$action  $address:$port\n" +
-                "Wi-Fi: ${if (wifi) "Yes" else "No"}  |  " +
-                "Mobile: ${if (mobile) "Yes" else "No"}"
+    "App: $appLabel\n" +
+    "Wi-Fi: ${if (wifi) "Yes" else "No"}  |  " +
+    "Mobile: ${if (mobile) "Yes" else "No"}"
             setTextColor(Color.WHITE)
             textSize = 13f
         }
