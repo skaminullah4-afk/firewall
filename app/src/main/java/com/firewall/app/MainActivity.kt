@@ -426,6 +426,8 @@ private fun showNewCustomFilterDialog() {
                     .putString("rules", rules.toString())
                     .apply()
 
+                    loadCustomRules()
+
                 android.widget.Toast.makeText(
                     this,
                     "Rule saved. Enforcement is not implemented yet.",
