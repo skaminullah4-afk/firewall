@@ -811,6 +811,7 @@ row.addView(details, LinearLayout.LayoutParams(0, -2, 1f))
     packageName: String,
     appLabel: String
 ) {
+        selectedFilterPackage = packageName
     val filterPrefs = getSharedPreferences(
         "custom_filter_settings",
         MODE_PRIVATE
