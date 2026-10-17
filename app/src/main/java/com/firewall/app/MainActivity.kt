@@ -326,7 +326,7 @@ private fun showNewCustomFilterDialog() {
     val address = EditText(this).apply {
         hint = "Address"
         setText("*")
-        singleLine = true
+        isSingleLine = true
     }
 
     val port = EditText(this).apply {
