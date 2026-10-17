@@ -103,6 +103,20 @@ if (intent?.action == "com.firewall.app.START_FROM_NOTIFICATION") {
         }
         root.addView(statusText, LinearLayout.LayoutParams(-1, -2))
 
+        newCustomFilterButton = Button(this).apply {
+    text = "NEW CUSTOM FILTER"
+    setTextColor(Color.WHITE)
+    setBackgroundColor(Color.TRANSPARENT)
+    stateListAnimator = null
+    setOnClickListener {
+        showNewCustomFilterDialog()
+    }
+}
+root.addView(
+    newCustomFilterButton,
+    LinearLayout.LayoutParams(-1, -2)
+)
+
         customFilterStatus = TextView(this).apply {
     text = "CUSTOM FILTERS: OFF"
     textSize = 14f
