@@ -30,6 +30,8 @@ class MainActivity : Activity() {
     private lateinit var nightStatusText: TextView
     private lateinit var appList: LinearLayout
     private lateinit var prefs: SharedPreferences
+    private lateinit var customFilterButton: Button
+    private lateinit var customFilterStatus: TextView
 
     private val appPackage = "com.firewall.app"
     private val vpnRequestCode = 100
