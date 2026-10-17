@@ -297,6 +297,138 @@ private fun updateCustomFilterStatus() {
         "CUSTOM FILTERS: OFF"
     }
 }
+
+
+private fun showNewCustomFilterDialog() {
+    val form = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
+        setPadding(dp(20), dp(8), dp(20), dp(4))
+    }
+
+    val wifi = CheckBox(this).apply {
+        text = "Wi-Fi"
+    }
+    val mobile = CheckBox(this).apply {
+        text = "Mobile data"
+    }
+
+    val address = EditText(this).apply {
+        hint = "Address"
+        setText("*")
+        singleLine = true
+    }
+
+    val port = EditText(this).apply {
+        hint = "Port number (1–65535)"
+        inputType = android.text.InputType.TYPE_CLASS_NUMBER
+        singleLine = true
+    }
+
+    val actionGroup = RadioGroup(this).apply {
+        orientation = RadioGroup.HORIZONTAL
+    }
+
+    val allow = RadioButton(this).apply {
+        text = "Allow"
+        id = android.view.View.generateViewId()
+    }
+
+    val block = RadioButton(this).apply {
+        text = "Block"
+        id = android.view.View.generateViewId()
+    }
+
+    actionGroup.addView(allow)
+    actionGroup.addView(block)
+
+    form.addView(wifi)
+    form.addView(mobile)
+    form.addView(address)
+    form.addView(port)
+    form.addView(actionGroup)
+
+    val dialog = AlertDialog.Builder(this)
+        .setTitle("New Custom Filter")
+        .setView(form)
+        .setNegativeButton("Cancel", null)
+        .setPositiveButton("OK", null)
+        .create()
+
+    dialog.setOnShowListener {
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE)
+            .setOnClickListener {
+                val portText = port.text.toString().trim()
+                val portNumber = portText.toIntOrNull()
+                val addressText = address.text.toString().trim()
+
+                if (!wifi.isChecked && !mobile.isChecked) {
+                    android.widget.Toast.makeText(
+                        this,
+                        "Select Wi-Fi or Mobile data.",
+                        android.widget.Toast.LENGTH_SHORT
+                    ).show()
+                    return@setOnClickListener
+                }
+
+                if (addressText.isBlank()) {
+                    address.error = "Enter an address or *"
+                    return@setOnClickListener
+                }
+
+                if (portNumber == null ||
+                    portNumber !in 1..65535
+                ) {
+                    port.error = "Enter a port from 1 to 65535"
+                    return@setOnClickListener
+                }
+
+                if (actionGroup.checkedRadioButtonId == -1) {
+                    android.widget.Toast.makeText(
+                        this,
+                        "Choose Allow or Block.",
+                        android.widget.Toast.LENGTH_SHORT
+                    ).show()
+                    return@setOnClickListener
+                }
+
+                val rule = org.json.JSONObject().apply {
+                    put("wifi", wifi.isChecked)
+                    put("mobile", mobile.isChecked)
+                    put("address", addressText)
+                    put("port", portNumber)
+                    put(
+                        "action",
+                        if (actionGroup.checkedRadioButtonId == allow.id)
+                            "allow" else "block"
+                    )
+                }
+
+                val filterPrefs = getSharedPreferences(
+                    "custom_filter_settings",
+                    MODE_PRIVATE
+                )
+
+                val rules = org.json.JSONArray(
+                    filterPrefs.getString("rules", "[]")
+                )
+                rules.put(rule)
+
+                filterPrefs.edit()
+                    .putString("rules", rules.toString())
+                    .apply()
+
+                android.widget.Toast.makeText(
+                    this,
+                    "Rule saved. Enforcement is not implemented yet.",
+                    android.widget.Toast.LENGTH_LONG
+                ).show()
+
+                dialog.dismiss()
+            }
+    }
+
+    dialog.show()
+}
     
 private fun toggleNightSchedule() {
     if (NightSchedule.isEnabled(this)) {
