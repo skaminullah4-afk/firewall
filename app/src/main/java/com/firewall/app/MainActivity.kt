@@ -124,7 +124,8 @@ root.addView(
     setBackgroundColor(Color.TRANSPARENT)
     stateListAnimator = null
     setOnClickListener {
-        showNewCustomFilterDialog()
+    selectedFilterPackage = null
+    showNewCustomFilterDialog()
     }
 }
 root.addView(
