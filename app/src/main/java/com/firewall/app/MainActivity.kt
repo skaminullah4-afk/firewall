@@ -806,6 +806,59 @@ row.addView(details, LinearLayout.LayoutParams(0, -2, 1f))
         }
     }
 
+    private fun showAppCustomFilters(
+    packageName: String,
+    appLabel: String
+) {
+    val filterPrefs = getSharedPreferences(
+        "custom_filter_settings",
+        MODE_PRIVATE
+    )
+
+    val rules = org.json.JSONArray(
+        filterPrefs.getString("rules", "[]")
+    )
+
+    val appRules = org.json.JSONArray()
+
+    for (i in 0 until rules.length()) {
+        val rule = rules.optJSONObject(i) ?: continue
+
+        if (rule.optString("packageName", "") == packageName) {
+            appRules.put(rule)
+        }
+    }
+
+    val message = if (appRules.length() == 0) {
+        "No custom filters for $appLabel yet.\n\n" +
+            "Tap NEW CUSTOM FILTER to create a filter."
+    } else {
+        val details = StringBuilder()
+
+        for (i in 0 until appRules.length()) {
+            val rule = appRules.getJSONObject(i)
+
+            details.append(
+                "${rule.optString("action", "block").uppercase()}  " +
+                    "${rule.optString("address", "*")}:" +
+                    "${rule.optInt("port", 0)}\n"
+            )
+            details.append(
+                "Wi-Fi: ${if (rule.optBoolean("wifi")) "Yes" else "No"} | " +
+                    "Mobile: ${if (rule.optBoolean("mobile")) "Yes" else "No"}\n\n"
+            )
+        }
+
+        details.toString().trim()
+    }
+
+    AlertDialog.Builder(this)
+        .setTitle("$appLabel — Custom Filters")
+        .setMessage(message)
+        .setPositiveButton("Close", null)
+        .show()
+    }
+
     private fun roundedBackground(
         fillColor: Int,
         strokeColor: Int
