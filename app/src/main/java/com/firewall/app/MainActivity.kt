@@ -213,6 +213,8 @@ root.addView(nightButton, LinearLayout.LayoutParams(-1, -2))
 loadInstalledApps()
 updateStatus()
 updateNightStatus()
+updateCustomFilterStatus()
+loadCustomRules()
     }
 
     override fun onResume() {
