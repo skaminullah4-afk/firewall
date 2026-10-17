@@ -728,8 +728,17 @@ private fun updateNightStatus() {
             }
 
             details.addView(nameView)
-            details.addView(packageView)
-            row.addView(details, LinearLayout.LayoutParams(0, -2, 1f))
+details.addView(packageView)
+
+details.setOnClickListener {
+    showAppCustomFilters(packageName, label)
+}
+
+iconView.setOnClickListener {
+    showAppCustomFilters(packageName, label)
+}
+
+row.addView(details, LinearLayout.LayoutParams(0, -2, 1f))
 
             val stateButton = TextView(this).apply {
                 gravity = Gravity.CENTER
